@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  /* custom theme extensions if needed */
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply bg-white/20 backdrop-blur-lg border border-white/30 shadow-lg;
+  }
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+  font-family: 'Inter', sans-serif;
+}
