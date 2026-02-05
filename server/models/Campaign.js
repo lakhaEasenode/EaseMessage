@@ -1,18 +1,26 @@
 const mongoose = require('mongoose');
 
 const CampaignSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
-    templateName: { type: String, required: true },
-    templateVariables: { type: Map, of: String },
-    contacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }],
+    phoneNumberId: { type: mongoose.Schema.Types.ObjectId, ref: 'WhatsAppPhoneNumber', required: true },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
+    listId: { type: mongoose.Schema.Types.ObjectId, ref: 'List', required: true },
+    status: {
+        type: String,
+        enum: ['draft', 'scheduled', 'running', 'completed', 'failed'],
+        default: 'draft'
+    },
     scheduledAt: { type: Date },
-    status: { type: String, enum: ['draft', 'scheduled', 'sent', 'failed'], default: 'draft' },
+    sendingInterval: { type: Number, default: 0 }, // Gap between messages in seconds
     stats: {
         sent: { type: Number, default: 0 },
         delivered: { type: Number, default: 0 },
-        read: { type: Number, default: 0 }
+        read: { type: Number, default: 0 },
+        failed: { type: Number, default: 0 }
     },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Campaign', CampaignSchema);

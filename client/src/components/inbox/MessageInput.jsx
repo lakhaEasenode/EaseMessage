@@ -45,24 +45,45 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
 
         try {
             setLoadingTemplates(true);
-            const token = localStorage.getItem('token'); // Retrieve token from manual storage for now, assuming AuthContext is wrapped or similar
+            const token = localStorage.getItem('token');
             if (!token) {
                 console.error("No token found");
                 return;
             }
-            // Better: assume parent passes a way to fetch or we use axios interceptors. 
-            // For this snippet, I'll rely on global axios or assume token is added by interceptor if configured.
-            // If not configured, we might fail. Let's assume standard axios call works if configured in App.
-
-            // Wait, we need the token. Let's assume we can get it from localStorage which is a common pattern or pass it in.
-            // I'll grab it from localStorage to be safe, though context is better.
-            const config = { headers: { 'x-auth-token': localStorage.getItem('token') } };
+            const config = { headers: { 'x-auth-token': token } };
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
-            const res = await axios.get(`${API_URL}/templates`, config);
-            // Filter for approved templates
-            const approved = res.data.filter(t => t.status === 'APPROVED');
-            setTemplates(approved);
+            // 1. Fetch Templates and Accounts in parallel
+            const [templatesRes, accountsRes] = await Promise.all([
+                axios.get(`${API_URL}/templates`, config),
+                axios.get(`${API_URL}/whatsapp/accounts`, config)
+            ]);
+
+            const allTemplates = templatesRes.data;
+            const accounts = accountsRes.data;
+
+            // 2. Find Default WABA
+            let defaultWabaId = null;
+            for (const acc of accounts) {
+                if (acc.phoneNumbers && acc.phoneNumbers.some(p => p.isDefault)) {
+                    defaultWabaId = acc._id;
+                    break;
+                }
+            }
+
+            // 3. Filter Templates
+            const approved = allTemplates.filter(t => t.status === 'APPROVED');
+
+            if (defaultWabaId) {
+                const filtered = approved.filter(t => {
+                    const tWabaId = t.wabaId && (t.wabaId._id || t.wabaId);
+                    return tWabaId === defaultWabaId;
+                });
+                setTemplates(filtered);
+            } else {
+                setTemplates(approved);
+            }
+
             setShowTemplateModal(true);
         } catch (err) {
             console.error("Failed to load templates", err);

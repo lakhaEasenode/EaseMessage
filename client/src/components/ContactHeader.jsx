@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Users, List as ListIcon, Loader2, RefreshCw } from 'lucide-react';
+import { Users, List as ListIcon, Loader2 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 
 const ContactHeader = ({ refreshKey }) => {
@@ -34,15 +34,8 @@ const ContactHeader = ({ refreshKey }) => {
 
     return (
         <div className="mb-8">
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Contacts Overview</h1>
-                <button
-                    onClick={fetchStats}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    title="Refresh Stats"
-                >
-                    <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">

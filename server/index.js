@@ -12,15 +12,27 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors({
-  origin: [process.env.CLIENT_URL || 'http://localhost:3300'],
-  credentials: true
-})); // Restricted to specific origins with credentials
-app.use(express.json());
+// Connect to Database
+// Note: connectDB() is not defined in the original document. Assuming it's meant to be added or is a placeholder.
+// For now, keeping the original connection logic in startServer().
+// If connectDB() is a new function, it needs to be defined.
+
+// Init Middleware
+app.use(express.json({ extended: false })); // Changed from app.use(express.json());
+app.use(cors()); // Changed from specific cors config
+
+// Register Models explicitly
+require('./models/User');
+require('./models/WhatsAppBusinessAccount');
+require('./models/WhatsAppPhoneNumber');
+require('./models/Contact');
+require('./models/List');
+require('./models/Message');
+require('./models/Template');
+require('./models/Campaign');
 
 // Routes
-const authRoutes = require('./routes/auth');
+app.use('/api/auth', require('./routes/auth')); // Changed from const authRoutes = require('./routes/auth'); app.use('/api/auth', authRoutes);
 const contactRoutes = require('./routes/contacts');
 const listRoutes = require('./routes/lists');
 const statsRoutes = require('./routes/stats');
@@ -29,15 +41,16 @@ const whatsappRoutes = require('./routes/whatsapp');
 const templateRoutes = require('./routes/templates');
 const dashboardRoutes = require('./routes/dashboard');
 
-app.use('/api/auth', authRoutes);
-app.use('/api/contacts', contactRoutes);
-app.use('/api/lists', listRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/campaigns', campaignRoutes);
-app.use('/api/whatsapp', whatsappRoutes);
-app.use('/api/templates', templateRoutes);
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/contacts', require('./routes/contacts'));
+app.use('/api/lists', require('./routes/lists'));
+app.use('/api/stats', require('./routes/stats'));
+app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/whatsapp', require('./routes/whatsapp'));
+app.use('/api/templates', require('./routes/templates'));
 app.use('/api/messages', require('./routes/messages'));
-app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 const seedData = async () => {
   try {

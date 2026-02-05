@@ -1,7 +1,6 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, Search, Filter, FileText, Copy, AlertCircle, RefreshCw } from 'lucide-react';
-import AuthContext from '../context/AuthContext';
+import { Loader2, Plus, Search, Filter, FileText, Copy, AlertCircle, RefreshCw, X, ChevronDown, Check } from 'lucide-react'; import AuthContext from '../context/AuthContext';
 import TemplateForm from '../components/TemplateForm';
 
 const Templates = () => {
@@ -19,6 +18,12 @@ const Templates = () => {
     const [filterCategory, setFilterCategory] = useState('ALL');
     const [filterStatus, setFilterStatus] = useState('ALL');
 
+    // WABA Filter
+    const [wabaAccounts, setWabaAccounts] = useState([]);
+    const [filterWaba, setFilterWaba] = useState([]); // Array of selected WABA IDs
+    const [isWabaDropdownOpen, setIsWabaDropdownOpen] = useState(false);
+    const wabaDropdownRef = useRef(null);
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
     const fetchTemplates = async () => {
@@ -35,11 +40,36 @@ const Templates = () => {
         }
     };
 
+    const fetchWabaAccounts = async () => {
+        try {
+            const config = { headers: { 'x-auth-token': token } };
+            const res = await axios.get(`${API_URL}/whatsapp/accounts`, config);
+            setWabaAccounts(res.data);
+        } catch (err) {
+            console.error('Error fetching WABA accounts:', err);
+        }
+    };
+
     useEffect(() => {
         if (token) {
             fetchTemplates();
+            fetchWabaAccounts();
         }
     }, [token]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wabaDropdownRef.current && !wabaDropdownRef.current.contains(event.target)) {
+                setIsWabaDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleCreate = async (data) => {
         try {
@@ -73,11 +103,26 @@ const Templates = () => {
     };
 
     // Filter Logic
+    const toggleWabaFilter = (wabaId) => {
+        setFilterWaba(prev => {
+            if (prev.includes(wabaId)) {
+                return prev.filter(id => id !== wabaId);
+            } else {
+                return [...prev, wabaId];
+            }
+        });
+    };
+
     const filteredTemplates = templates.filter(t => {
         const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
         const matchesCategory = filterCategory === 'ALL' || t.category === filterCategory;
         const matchesStatus = filterStatus === 'ALL' || t.status === filterStatus;
-        return matchesSearch && matchesCategory && matchesStatus;
+
+        // WABA Filter Logic: If filterWaba is empty, show all. Else, must match one of selected IDs.
+        // t.wabaId is an object populated from backend { _id, name, ... } or null
+        const matchesWaba = filterWaba.length === 0 || (t.wabaId && filterWaba.includes(t.wabaId._id));
+
+        return matchesSearch && matchesCategory && matchesStatus && matchesWaba;
     });
 
     const getStatusColor = (status) => {
@@ -136,7 +181,66 @@ const Templates = () => {
                         className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-sm"
                     />
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                    {/* WABA Multi-Select Dropdown */}
+                    <div className="relative" ref={wabaDropdownRef}>
+                        <button
+                            onClick={() => setIsWabaDropdownOpen(!isWabaDropdownOpen)}
+                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm outline-none bg-white min-w-[180px] ${filterWaba.length > 0
+                                    ? 'border-green-500 text-green-700 bg-green-50'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                }`}
+                        >
+                            <span className="truncate max-w-[140px]">
+                                {filterWaba.length === 0
+                                    ? 'All WABA Accounts'
+                                    : `${filterWaba.length} Account${filterWaba.length > 1 ? 's' : ''} Selected`}
+                            </span>
+                            <ChevronDown size={16} className={`transition-transform ${isWabaDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isWabaDropdownOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="p-2 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider pl-2">Filter by WABA</span>
+                                    {filterWaba.length > 0 && (
+                                        <button
+                                            onClick={() => setFilterWaba([])}
+                                            className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="max-h-60 overflow-y-auto p-1">
+                                    {wabaAccounts.length === 0 ? (
+                                        <div className="p-3 text-sm text-gray-400 text-center">No accounts found</div>
+                                    ) : (
+                                        wabaAccounts.map(account => {
+                                            const isSelected = filterWaba.includes(account._id);
+                                            return (
+                                                <button
+                                                    key={account._id}
+                                                    onClick={() => toggleWabaFilter(account._id)}
+                                                    className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isSelected
+                                                            ? 'bg-green-50 text-green-800 font-medium'
+                                                            : 'text-gray-600 hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-green-500 border-green-500' : 'border-gray-300 bg-white'
+                                                        }`}>
+                                                        {isSelected && <Check size={12} className="text-white" />}
+                                                    </div>
+                                                    <span className="truncate">{account.name}</span>
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <select
                         value={filterStatus}
                         onChange={e => setFilterStatus(e.target.value)}
@@ -195,6 +299,7 @@ const Templates = () => {
                             <thead className="bg-gray-50/50 border-b border-gray-100">
                                 <tr>
                                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Template Name</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">WABA</th>
                                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Category</th>
                                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Language</th>
                                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
@@ -207,6 +312,15 @@ const Templates = () => {
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-gray-800 text-sm">{template.name}</div>
                                             <div className="text-xs text-gray-400 font-mono mt-0.5">Last updated: {new Date(template.updatedAt).toLocaleDateString()}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {template.wabaId ? (
+                                                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                                                    {template.wabaId.name || 'Unknown'}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-gray-400">N/A</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">

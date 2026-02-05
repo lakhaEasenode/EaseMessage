@@ -7,7 +7,9 @@ const TemplateSchema = new mongoose.Schema({
         required: true
     },
     wabaId: {
-        type: String
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'WhatsAppBusinessAccount',
+        required: true
     },
     template_id: {
         type: String

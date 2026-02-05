@@ -10,7 +10,7 @@ import Templates from './pages/Templates';
 import AuthContext, { AuthProvider } from './context/AuthContext';
 
 // Placeholder Pages
-const Campaigns = () => <h1 className="text-2xl font-bold">Campaigns</h1>;
+import Campaigns from './pages/Campaigns';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 

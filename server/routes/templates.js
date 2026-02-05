@@ -10,8 +10,19 @@ const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const templates = await Template.find({ userId: req.user.id }).sort({ createdAt: -1 });
-        res.json(templates);
+        // Fetch templates first
+        const templates = await Template.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean();
+
+        // Manually populate WABA info to avoid Mongoose populate issues
+        const populatedTemplates = await Promise.all(templates.map(async (template) => {
+            if (template.wabaId) {
+                const waba = await WhatsAppBusinessAccount.findById(template.wabaId).select('name wabaId').lean();
+                template.wabaId = waba || null;
+            }
+            return template;
+        }));
+
+        res.json(populatedTemplates);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -23,94 +34,106 @@ router.get('/', auth, async (req, res) => {
 // @access  Private
 router.get('/sync', auth, async (req, res) => {
     try {
-        // 1. Get User's Connected WABA
-        const wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: req.user.id });
-        if (!wabaAccount || !wabaAccount.accessToken) {
-            return res.status(400).json({ msg: 'No connected WhatsApp Business Account found. Please connect one first.' });
+        // 1. Get All User's Connected WABAs
+        const wabaAccounts = await WhatsAppBusinessAccount.find({ userId: req.user.id });
+
+        if (!wabaAccounts || wabaAccounts.length === 0) {
+            return res.status(400).json({ msg: 'No connected WhatsApp Business Accounts found. Please connect one first.' });
         }
 
-        // 2. Call Facebook Graph API to get all templates
-        const response = await axios.get(
-            `https://graph.facebook.com/v24.0/${wabaAccount.wabaId}/message_templates`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${wabaAccount.accessToken}`
-                }
-            }
-        );
-
-        const fetchedTemplates = response.data.data || [];
-
-        // 3. Update or create templates in database based on template_id
         const syncResults = {
-            updated: 0,
+            totalAccounts: wabaAccounts.length,
+            totalTemplates: 0,
             created: 0,
-            total: fetchedTemplates.length
+            updated: 0,
+            errors: []
         };
 
-        for (const tmpl of fetchedTemplates) {
-            // Extract body text from components
-            const bodyComponent = tmpl.components.find(c => c.type === 'BODY');
-            const bodyText = bodyComponent ? bodyComponent.text : '';
-
-            // Extract variables from body text
-            const variableRegex = /{{(\d+)}}/g;
-            const variables = [];
-            let match;
-            while ((match = variableRegex.exec(bodyText)) !== null) {
-                if (!variables.includes(match[0])) {
-                    variables.push(match[0]);
-                }
+        // 2. Iterate through each WABA
+        for (const wabaAccount of wabaAccounts) {
+            if (!wabaAccount.accessToken) {
+                syncResults.errors.push(`Skipping ${wabaAccount.name}: No access token`);
+                continue;
             }
 
-            // Try to find existing template by template_id
-            const existing = await Template.findOne({ template_id: tmpl.id });
+            try {
+                // Call Facebook Graph API
+                const response = await axios.get(
+                    `https://graph.facebook.com/v24.0/${wabaAccount.wabaId}/message_templates`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${wabaAccount.accessToken}`
+                        }
+                    }
+                );
 
-            if (existing) {
-                // Update existing template
-                existing.name = tmpl.name;
-                existing.category = tmpl.category;
-                existing.language = tmpl.language;
-                existing.body = bodyText;
-                existing.variables = variables;
-                existing.status = tmpl.status;
-                existing.components = tmpl.components;
-                existing.parameter_format = tmpl.parameter_format;
-                await existing.save();
-                syncResults.updated++;
-            } else {
-                // Create new template
-                const newTemplate = new Template({
-                    userId: req.user.id,
-                    wabaId: wabaAccount.wabaId,
-                    template_id: tmpl.id,
-                    name: tmpl.name,
-                    category: tmpl.category,
-                    language: tmpl.language,
-                    body: bodyText,
-                    variables,
-                    status: tmpl.status,
-                    components: tmpl.components,
-                    parameter_format: tmpl.parameter_format
-                });
-                await newTemplate.save();
-                syncResults.created++;
+                const fetchedTemplates = response.data.data || [];
+                syncResults.totalTemplates += fetchedTemplates.length;
+
+                // Update or create templates in database
+                for (const tmpl of fetchedTemplates) {
+                    // Extract body text & variables (logic remains same)
+                    const bodyComponent = tmpl.components.find(c => c.type === 'BODY');
+                    const bodyText = bodyComponent ? bodyComponent.text : '';
+
+                    const variableRegex = /{{(\d+)}}/g;
+                    const variables = [];
+                    let match;
+                    while ((match = variableRegex.exec(bodyText)) !== null) {
+                        if (!variables.includes(match[0])) variables.push(match[0]);
+                    }
+
+                    // Find existing template by template_id AND wabaId (to handle same template name in diff accounts)
+                    // Note: template_id is unique per WABA usually, but let's be safe.
+                    // Actually, Meta template Ids are globally unique, but we should scope by user/waba just in case.
+                    const existing = await Template.findOne({
+                        template_id: tmpl.id,
+                        wabaId: wabaAccount._id
+                    });
+
+                    if (existing) {
+                        existing.name = tmpl.name;
+                        existing.category = tmpl.category;
+                        existing.language = tmpl.language;
+                        existing.body = bodyText;
+                        existing.variables = variables;
+                        existing.status = tmpl.status;
+                        existing.components = tmpl.components;
+                        existing.parameter_format = tmpl.parameter_format;
+                        await existing.save();
+                        syncResults.updated++;
+                    } else {
+                        const newTemplate = new Template({
+                            userId: req.user.id,
+                            wabaId: wabaAccount._id,
+                            template_id: tmpl.id,
+                            name: tmpl.name,
+                            category: tmpl.category,
+                            language: tmpl.language,
+                            body: bodyText,
+                            variables,
+                            status: tmpl.status,
+                            components: tmpl.components,
+                            parameter_format: tmpl.parameter_format
+                        });
+                        await newTemplate.save();
+                        syncResults.created++;
+                    }
+                }
+            } catch (wabaErr) {
+                console.error(`Error syncing WABA ${wabaAccount.name}:`, wabaErr.message);
+                syncResults.errors.push(`Failed to sync ${wabaAccount.name}: ${wabaErr.message}`);
             }
         }
 
         res.json({
             success: true,
-            message: `Synced ${syncResults.total} templates (${syncResults.created} created, ${syncResults.updated} updated)`,
+            message: `Synced ${syncResults.totalTemplates} templates from ${syncResults.totalAccounts} accounts (${syncResults.created} created, ${syncResults.updated} updated)`,
             ...syncResults
         });
 
     } catch (err) {
-        console.error('Template Sync Error:', err.message);
-        if (err.response) {
-            console.error('Graph API Error Data:', err.response.data);
-            const errorMsg = err.response.data.error?.message || 'Failed to sync templates from WhatsApp.';
-            return res.status(400).json({ msg: errorMsg });
-        }
+        console.error('Global Template Sync Error:', err.message);
         res.status(500).send('Server error');
     }
 });
@@ -174,7 +197,7 @@ router.post('/', auth, async (req, res) => {
         // 5. Save to Database
         const newTemplate = new Template({
             userId: req.user.id,
-            wabaId: wabaAccount.wabaId,
+            wabaId: wabaAccount._id,
             template_id: fbData.id,
             name,
             category,

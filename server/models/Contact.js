@@ -23,7 +23,7 @@ const ContactSchema = new mongoose.Schema({
     countryCode: {
         type: String,
         required: true,
-        default: '+1'
+        trim: true // e.g. "91", "1" (no +)
     },
     phoneNumber: {
         type: String,
@@ -36,6 +36,14 @@ const ContactSchema = new mongoose.Schema({
         type: String,
         trim: true,
         lowercase: true
+    },
+    companyName: {
+        type: String,
+        trim: true
+    },
+    sheetName: {
+        type: String,
+        trim: true
     },
 
     // Tags for categorization
@@ -58,7 +66,7 @@ const ContactSchema = new mongoose.Schema({
     },
     optInSource: {
         type: String,
-        enum: ['manual', 'csv', 'api'],
+        enum: ['manual', 'csv', 'api', 'import'],
         default: 'manual'
     },
     optInDate: {

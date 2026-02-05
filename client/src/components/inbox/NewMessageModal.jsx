@@ -42,8 +42,42 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
         try {
             setLoading(true);
             const config = { headers: { 'x-auth-token': token } };
-            const res = await axios.get(`${API_URL}/templates`, config);
-            setTemplates(res.data.filter(t => t.status === 'APPROVED'));
+
+            // 1. Fetch Templates and Accounts in parallel
+            const [templatesRes, accountsRes] = await Promise.all([
+                axios.get(`${API_URL}/templates`, config),
+                axios.get(`${API_URL}/whatsapp/accounts`, config)
+            ]);
+
+            const allTemplates = templatesRes.data;
+            const accounts = accountsRes.data;
+
+            // 2. Find Default WABA
+            let defaultWabaId = null;
+            for (const acc of accounts) {
+                if (acc.phoneNumbers && acc.phoneNumbers.some(p => p.isDefault)) {
+                    defaultWabaId = acc._id;
+                    break;
+                }
+            }
+
+            // 3. Filter Templates
+            const approved = allTemplates.filter(t => t.status === 'APPROVED');
+
+            if (defaultWabaId) {
+                const filtered = approved.filter(t => {
+                    // t.wabaId can be populated object or ID string
+                    const tWabaId = t.wabaId && (t.wabaId._id || t.wabaId);
+                    return tWabaId === defaultWabaId;
+                });
+                setTemplates(filtered);
+            } else {
+                // If no default account, maybe show all or none? 
+                // Showing all might confuse user if they can't send.
+                // But let's fallback to approved only if no default set (though buttons shouldn't work then)
+                setTemplates(approved);
+            }
+
         } catch (err) {
             console.error("Failed to load templates", err);
         } finally {

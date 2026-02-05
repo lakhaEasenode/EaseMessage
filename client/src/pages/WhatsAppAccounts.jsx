@@ -108,70 +108,70 @@ const WhatsAppAccounts = () => {
             ) : (
                 <div className="space-y-6">
                     {accounts.length === 0 ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-                            <div className="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                <Smartphone size={32} />
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                            <div className="w-14 h-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                <Smartphone size={28} />
                             </div>
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">No Accounts Connected</h3>
-                            <p className="text-gray-500 max-w-sm mx-auto mb-6">Connect your WhatsApp Business Account to start sending campaigns.</p>
+                            <h3 className="text-base font-bold text-gray-800 mb-1">No Accounts Connected</h3>
+                            <p className="text-gray-500 max-w-sm mx-auto text-sm mb-4">Connect your WhatsApp Business Account to start sending campaigns.</p>
                             <button
                                 onClick={() => setIsConnectModalOpen(true)}
-                                className="text-green-600 font-bold hover:underline"
+                                className="text-green-600 font-bold hover:underline text-sm"
                             >
                                 Connect now
                             </button>
                         </div>
                     ) : (
                         accounts.map(account => (
-                            <div key={account._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-green-100 text-green-700 rounded-xl flex items-center justify-center font-bold text-xl">
+                            <div key={account._id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-3 py-2 border-b border-gray-50 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 bg-green-100 text-green-700 rounded-lg flex items-center justify-center font-bold text-base">
                                             {account.name.charAt(0)}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-gray-800 text-lg">{account.name}</h3>
-                                            <div className="flex items-center gap-3 text-xs text-gray-500 font-mono mt-1">
+                                            <h3 className="font-bold text-gray-800 text-base">{account.name}</h3>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500 font-mono mt-0.5">
                                                 <span>ID: {account.wabaId}</span>
-                                                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                <span className="w-0.5 h-0.5 bg-gray-300 rounded-full"></span>
                                                 <span>{account.timezoneId}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
-                                            <CheckCircle size={14} />
+                                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                                            <CheckCircle size={10} />
                                             Active
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="p-6">
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Connected Phone Numbers</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="p-3">
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Connected Phone Numbers</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                                         {account.phoneNumbers.map(num => (
-                                            <div key={num._id} className="border border-gray-100 rounded-xl p-4 hover:border-green-200 transition-colors group">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-bold text-gray-800">{num.verifiedName}</span>
+                                            <div key={num._id} className="border border-gray-100 rounded p-2 hover:border-green-200 transition-colors group">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-bold text-gray-800 text-sm">{num.verifiedName}</span>
                                                         {num.isDefault && (
-                                                            <span className="bg-green-100 text-green-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                                            <span className="bg-green-100 text-green-700 text-[10px] font-bold px-1 py-0.5 rounded-full flex items-center gap-0.5">
                                                                 <Shield size={10} />
                                                                 DEFAULT
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${num.codeVerificationStatus === 'VERIFIED'
+                                                    <span className={`text-[10px] font-bold px-1 py-0.5 rounded border ${num.codeVerificationStatus === 'VERIFIED'
                                                         ? 'bg-green-50 text-green-600 border-green-100'
                                                         : 'bg-yellow-50 text-yellow-600 border-yellow-100'
                                                         }`}>
                                                         {num.codeVerificationStatus || 'UNKNOWN'}
                                                     </span>
                                                 </div>
-                                                <div className="text-sm font-mono text-gray-600 mb-3">{num.displayPhoneNumber}</div>
+                                                <div className="text-xs font-mono text-gray-600 mb-1.5">{num.displayPhoneNumber}</div>
                                                 <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                                                        <span className={`w-2 h-2 rounded-full ${num.qualityRating === 'GREEN' ? 'bg-green-500' :
+                                                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${num.qualityRating === 'GREEN' ? 'bg-green-500' :
                                                             num.qualityRating === 'YELLOW' ? 'bg-yellow-500' : 'bg-red-500'
                                                             }`}></span>
                                                         Quality: {num.qualityRating || 'UNKNOWN'}
