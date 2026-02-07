@@ -23,4 +23,7 @@ const CampaignSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
+CampaignSchema.index({ user: 1 });
+CampaignSchema.index({ status: 1, scheduledAt: 1 });
+
 module.exports = mongoose.model('Campaign', CampaignSchema);

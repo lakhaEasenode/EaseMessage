@@ -214,8 +214,10 @@ const startServer = async () => {
 
     await seedData();
 
+    const { startScheduler } = require('./schedulers/campaignScheduler');
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      startScheduler();
     });
   } catch (err) {
     console.error(err);

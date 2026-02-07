@@ -41,6 +41,19 @@ class CampaignController {
     }
 
     /**
+     * Start executing a campaign
+     */
+    async startCampaign(req, res) {
+        try {
+            const campaign = await campaignService.startCampaign(req.user.id, req.params.id);
+            res.json(campaign);
+        } catch (err) {
+            console.error('Error starting campaign:', err.message);
+            res.status(400).json({ msg: err.message });
+        }
+    }
+
+    /**
      * Update a campaign (draft/scheduled only)
      */
     async updateCampaign(req, res) {

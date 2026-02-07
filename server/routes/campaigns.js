@@ -18,6 +18,11 @@ router.post('/', auth, campaignController.createCampaign);
 // @access  Private
 router.get('/templates/:phoneNumberId', auth, campaignController.getVerifiedTemplates);
 
+// @route   POST api/campaigns/:id/start
+// @desc    Start executing a campaign
+// @access  Private
+router.post('/:id/start', auth, campaignController.startCampaign);
+
 // @route   GET api/campaigns/:id
 // @desc    Get single campaign
 // @access  Private

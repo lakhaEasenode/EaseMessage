@@ -2,6 +2,10 @@ const Campaign = require('../models/Campaign');
 const WhatsAppPhoneNumber = require('../models/WhatsAppPhoneNumber');
 const Template = require('../models/Template');
 const List = require('../models/List');
+const Contact = require('../models/Contact');
+const Message = require('../models/Message');
+const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
+const axios = require('axios');
 
 class CampaignService {
     /**
@@ -126,6 +130,111 @@ class CampaignService {
         }
         await Campaign.deleteOne({ _id: campaignId });
         return { msg: 'Campaign deleted' };
+    }
+
+    /**
+     * Start executing a campaign
+     */
+    async startCampaign(userId, campaignId) {
+        // 1. Find and validate campaign
+        const campaign = await Campaign.findOne({ _id: campaignId, user: userId });
+        if (!campaign) throw new Error('Campaign not found');
+        if (!['draft', 'scheduled'].includes(campaign.status)) {
+            throw new Error('Campaign can only be started from draft or scheduled status');
+        }
+
+        // 2. Set status to running
+        campaign.status = 'running';
+        campaign.updatedAt = Date.now();
+        await campaign.save();
+
+        // 3. Get contacts from the target list
+        const contacts = await Contact.findActive({
+            lists: campaign.listId,
+            userId: userId
+        });
+
+        // 4. Get phone number record and WABA for access token
+        const phoneRecord = await WhatsAppPhoneNumber.findById(campaign.phoneNumberId);
+        if (!phoneRecord) {
+            campaign.status = 'failed';
+            await campaign.save();
+            throw new Error('Phone number not found');
+        }
+
+        const waba = await WhatsAppBusinessAccount.findById(phoneRecord.wabaId);
+        if (!waba || !waba.accessToken) {
+            campaign.status = 'failed';
+            await campaign.save();
+            throw new Error('WhatsApp Business Account not found or missing access token');
+        }
+
+        // 5. Get template data
+        const template = await Template.findById(campaign.templateId);
+        if (!template) {
+            campaign.status = 'failed';
+            await campaign.save();
+            throw new Error('Template not found');
+        }
+
+        // 6. Send messages to each contact
+        const sendUrl = `https://graph.facebook.com/v24.0/${phoneRecord.phoneNumberId}/messages`;
+
+        for (const contact of contacts) {
+            try {
+                const phoneNumber = contact.countryCode + contact.phoneNumber;
+
+                const payload = {
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: phoneNumber,
+                    type: 'template',
+                    template: {
+                        name: template.name,
+                        language: { code: template.language || 'en_US' },
+                        components: []
+                    }
+                };
+
+                await axios.post(sendUrl, payload, {
+                    headers: {
+                        'Authorization': `Bearer ${waba.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                // Save message record
+                await new Message({
+                    contact: contact._id,
+                    content: `Template: ${template.name}`,
+                    type: 'template',
+                    direction: 'outbound',
+                    status: 'sent',
+                    timestamp: new Date()
+                }).save();
+
+                campaign.stats.sent += 1;
+            } catch (err) {
+                console.error(`Campaign ${campaignId}: Failed to send to ${contact._id}:`, err.message);
+                campaign.stats.failed += 1;
+            }
+
+            // Save progress periodically
+            campaign.updatedAt = Date.now();
+            await campaign.save();
+
+            // Wait between messages if interval is set
+            if (campaign.sendingInterval > 0) {
+                await new Promise(resolve => setTimeout(resolve, campaign.sendingInterval * 1000));
+            }
+        }
+
+        // 7. Mark campaign as completed (or failed if ALL messages failed)
+        campaign.status = campaign.stats.sent > 0 ? 'completed' : 'failed';
+        campaign.updatedAt = Date.now();
+        await campaign.save();
+
+        return campaign;
     }
 
     /**
