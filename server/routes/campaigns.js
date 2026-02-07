@@ -18,4 +18,9 @@ router.post('/', auth, campaignController.createCampaign);
 // @access  Private
 router.get('/templates/:phoneNumberId', auth, campaignController.getVerifiedTemplates);
 
+// @route   GET api/campaigns/:id
+// @desc    Get single campaign
+// @access  Private
+router.get('/:id', auth, campaignController.getCampaign);
+
 module.exports = router;

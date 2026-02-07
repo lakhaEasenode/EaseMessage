@@ -65,6 +65,18 @@ class CampaignService {
     }
 
     /**
+     * Get a single campaign by ID
+     */
+    async getCampaign(userId, campaignId) {
+        const campaign = await Campaign.findOne({ _id: campaignId, user: userId })
+            .populate('phoneNumberId', 'displayPhoneNumber verifiedName')
+            .populate('templateId', 'name components language category')
+            .populate('listId', 'name contactCount');
+        if (!campaign) throw new Error('Campaign not found');
+        return campaign;
+    }
+
+    /**
      * Get all campaigns for a user
      */
     async getCampaigns(userId) {

@@ -15,6 +15,19 @@ class CampaignController {
     }
 
     /**
+     * Get a single campaign
+     */
+    async getCampaign(req, res) {
+        try {
+            const campaign = await campaignService.getCampaign(req.user.id, req.params.id);
+            res.json(campaign);
+        } catch (err) {
+            console.error('Error fetching campaign:', err.message);
+            res.status(404).json({ msg: err.message });
+        }
+    }
+
+    /**
      * Get all campaigns for logged in user
      */
     async getCampaigns(req, res) {
