@@ -29,6 +29,9 @@ const Contacts = () => {
     const [isCreatingListInModal, setIsCreatingListInModal] = useState(false);
     const [newListInModalName, setNewListInModalName] = useState('');
 
+    // Manual Contact List Selection State
+    const [selectedManualListIds, setSelectedManualListIds] = useState([]);
+
     // Edit Contact State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingContact, setEditingContact] = useState(null);
@@ -183,7 +186,7 @@ const Contacts = () => {
             setAddContactLoading(true);
             const config = { headers: { 'x-auth-token': token } };
 
-            await axios.post(`${API_URL}/contacts`, newContact, config);
+            await axios.post(`${API_URL}/contacts`, { ...newContact, listIds: selectedManualListIds }, config);
 
             setIsManualModalOpen(false);
             setNewContact({
@@ -196,6 +199,7 @@ const Contacts = () => {
                 sheetName: '',
                 optedIn: true
             });
+            setSelectedManualListIds([]);
             setRefreshKey(prev => prev + 1); // Trigger refresh
         } catch (err) {
             console.error('Error adding contact:', err);
@@ -638,7 +642,7 @@ const Contacts = () => {
                                 Add New Contact
                             </h3>
                             <button
-                                onClick={() => setIsManualModalOpen(false)}
+                                onClick={() => { setIsManualModalOpen(false); setSelectedManualListIds([]); }}
                                 className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                                 <X size={20} />
@@ -737,6 +741,47 @@ const Contacts = () => {
                                 />
                             </div>
 
+                            {/* Assign to Lists */}
+                            <div className="mb-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Assign to Lists
+                                </label>
+                                <div className="space-y-3">
+                                    {lists.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                                            {lists.map(list => {
+                                                const isSelected = selectedManualListIds.includes(list._id);
+                                                return (
+                                                    <div
+                                                        key={list._id}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setSelectedManualListIds(selectedManualListIds.filter(id => id !== list._id));
+                                                            } else {
+                                                                setSelectedManualListIds([...selectedManualListIds, list._id]);
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
+                                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                            : 'bg-white border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                            }`}>
+                                                            {isSelected && <Check size={10} className="text-white" />}
+                                                        </div>
+                                                        <span className="text-xs font-medium truncate">{list.name}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {lists.length === 0 && (
+                                        <p className="text-xs text-gray-400">No lists available.</p>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="mb-6 flex items-start gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
                                 <input
                                     type="checkbox"
@@ -753,7 +798,7 @@ const Contacts = () => {
                             <div className="flex gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => setIsManualModalOpen(false)}
+                                    onClick={() => { setIsManualModalOpen(false); setSelectedManualListIds([]); }}
                                     className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
                                 >
                                     Cancel
