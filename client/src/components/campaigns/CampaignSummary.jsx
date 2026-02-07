@@ -1,6 +1,6 @@
 import { Rocket, Edit } from 'lucide-react';
 
-const CampaignSummary = ({ formData, selectedPhone, selectedTemplate, selectedList, onSubmit, submitting }) => {
+const CampaignSummary = ({ formData, selectedPhone, selectedTemplate, selectedList, onSubmit, submitting, hideButton }) => {
     return (
         <div className="space-y-6">
             <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -65,13 +65,15 @@ const CampaignSummary = ({ formData, selectedPhone, selectedTemplate, selectedLi
                 </div>
             </div>
 
-            <button
-                onClick={onSubmit}
-                disabled={submitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold hover:scale-[1.01] active:scale-[0.99] transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-            >
-                {submitting ? 'Creating Campaign...' : 'Make It Real 🚀'}
-            </button>
+            {!hideButton && (
+                <button
+                    onClick={onSubmit}
+                    disabled={submitting}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold hover:scale-[1.01] active:scale-[0.99] transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                >
+                    {submitting ? 'Creating Campaign...' : 'Make It Real 🚀'}
+                </button>
+            )}
         </div>
     );
 };
