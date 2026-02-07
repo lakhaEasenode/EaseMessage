@@ -57,12 +57,9 @@ class CampaignService {
             throw new Error('Phone number not found');
         }
 
-        // In a real scenario, we'd filter templates by the WABA ID associated with this phone.
-        // For now, based on current schema, we'll fetch all APPROVED templates for the user 
-        // that match the language/category if needed.
-        // Assuming templates are global or linked to user for now.
-
         return await Template.find({
+            userId: userId,
+            wabaId: phone.wabaId,
             status: 'APPROVED'
         });
     }
