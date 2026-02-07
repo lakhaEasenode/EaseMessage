@@ -477,14 +477,20 @@ const Contacts = () => {
                                                     <div className="flex justify-end gap-1.5">
                                                         <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye size={16} /></button>
                                                         <button
-                                                            onClick={() => handleEditContact(contact)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditContact(contact);
+                                                            }}
                                                             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                                             title="Edit Contact"
                                                         >
                                                             <Edit size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDeleteContact(contact._id)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteContact(contact._id);
+                                                            }}
                                                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                             title="Delete Contact"
                                                         >
@@ -545,7 +551,10 @@ const Contacts = () => {
                                                     <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye size={16} /></button>
                                                     <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"><Edit size={16} /></button>
                                                     <button
-                                                        onClick={() => handleDeleteList(list._id)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteList(list._id);
+                                                        }}
                                                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                         title="Delete List"
                                                     >
