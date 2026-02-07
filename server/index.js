@@ -3,9 +3,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const bcrypt = require('bcryptjs');
 const Contact = require('./models/Contact');
 const Campaign = require('./models/Campaign');
 const Message = require('./models/Message');
+const List = require('./models/List');
+const Template = require('./models/Template');
+const WhatsAppBusinessAccount = require('./models/WhatsAppBusinessAccount');
+const WhatsAppPhoneNumber = require('./models/WhatsAppPhoneNumber');
 
 dotenv.config();
 
@@ -59,36 +64,127 @@ const seedData = async () => {
 
     console.log('Seeding data...');
 
-    const contacts = await Contact.create([
-      { name: 'John Doe', phoneNumber: '+1234567890', email: 'john@example.com', tags: ['lead'], source: 'manual' },
-      { name: 'Jane Smith', phoneNumber: '+0987654321', email: 'jane@example.com', tags: ['vip'], source: 'csv' },
-      { name: 'Alice Johnson', phoneNumber: '+1122334455', email: 'alice@example.com', tags: ['customer'], source: 'manual' },
-      { name: 'Bob Brown', phoneNumber: '+5566778899', email: 'bob@example.com', tags: ['lead'], source: 'api' }
+    // 1. Find or create a test user
+    let testUser = await require('./models/User').findOne({ email: 'test@example.com' });
+    if (!testUser) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('password123', salt);
+      testUser = await require('./models/User').create({
+        email: 'test@example.com',
+        password: hashedPassword,
+        firstName: 'Test',
+        businessName: 'Test Business'
+      });
+    }
+
+    // 2. Create a WhatsApp Business Account
+    const waba = await WhatsAppBusinessAccount.create({
+      userId: testUser._id,
+      wabaId: 'seed_waba_001',
+      name: 'Test Business WABA',
+      accessToken: 'seed_access_token_placeholder'
+    });
+
+    // 3. Create a WhatsApp Phone Number
+    const phoneNumber = await WhatsAppPhoneNumber.create({
+      userId: testUser._id,
+      wabaId: waba._id,
+      phoneNumberId: 'seed_phone_001',
+      verifiedName: 'Test Business',
+      displayPhoneNumber: '+1 234 567 8900',
+      isDefault: true
+    });
+
+    // 4. Create Templates
+    const templates = await Template.create([
+      {
+        userId: testUser._id,
+        wabaId: waba._id,
+        name: 'summer_promo',
+        category: 'MARKETING',
+        language: 'en_US',
+        body: 'Hey {{1}}! Check out our summer deals. Use code SUMMER20 for 20% off!',
+        variables: ['firstName'],
+        status: 'APPROVED'
+      },
+      {
+        userId: testUser._id,
+        wabaId: waba._id,
+        name: 'welcome_msg',
+        category: 'MARKETING',
+        language: 'en_US',
+        body: 'Welcome to {{1}}, {{2}}! We are glad to have you on board.',
+        variables: ['businessName', 'firstName'],
+        status: 'APPROVED'
+      },
+      {
+        userId: testUser._id,
+        wabaId: waba._id,
+        name: 'bf_promo',
+        category: 'MARKETING',
+        language: 'en_US',
+        body: 'Black Friday is here, {{1}}! Massive discounts waiting for you.',
+        variables: ['firstName'],
+        status: 'APPROVED'
+      }
     ]);
 
+    // 5. Create Contacts with correct schema fields
+    const contacts = await Contact.create([
+      { userId: testUser._id, firstName: 'John', lastName: 'Doe', countryCode: '1', phoneNumber: '234567890', email: 'john@example.com', tags: ['lead'], optedIn: true, optInSource: 'manual' },
+      { userId: testUser._id, firstName: 'Jane', lastName: 'Smith', countryCode: '1', phoneNumber: '987654321', email: 'jane@example.com', tags: ['vip'], optedIn: true, optInSource: 'csv' },
+      { userId: testUser._id, firstName: 'Alice', lastName: 'Johnson', countryCode: '1', phoneNumber: '122334455', email: 'alice@example.com', tags: ['customer'], optedIn: true, optInSource: 'manual' },
+      { userId: testUser._id, firstName: 'Bob', lastName: 'Brown', countryCode: '1', phoneNumber: '566778899', email: 'bob@example.com', tags: ['lead'], optedIn: true, optInSource: 'api' }
+    ]);
+
+    // 6. Create a List and associate contacts
+    const list = await List.create({
+      name: 'All Contacts',
+      description: 'Default list with all seed contacts',
+      userId: testUser._id,
+      contacts: contacts.map(c => c._id),
+      contactCount: contacts.length
+    });
+
+    await Contact.updateMany(
+      { _id: { $in: contacts.map(c => c._id) } },
+      { $push: { lists: list._id } }
+    );
+
+    // 7. Create Campaigns with all required refs
     await Campaign.create([
       {
+        user: testUser._id,
         name: 'Summer Sale',
-        templateName: 'summer_promo',
-        status: 'sent',
+        phoneNumberId: phoneNumber._id,
+        templateId: templates[0]._id,
+        listId: list._id,
+        status: 'completed',
         stats: { sent: 120, delivered: 115, read: 90 },
         createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       },
       {
+        user: testUser._id,
         name: 'Welcome Series',
-        templateName: 'welcome_msg',
+        phoneNumberId: phoneNumber._id,
+        templateId: templates[1]._id,
+        listId: list._id,
         status: 'scheduled',
         scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
         createdAt: new Date()
       },
       {
+        user: testUser._id,
         name: 'Black Friday',
-        templateName: 'bf_promo',
+        phoneNumberId: phoneNumber._id,
+        templateId: templates[2]._id,
+        listId: list._id,
         status: 'draft',
         createdAt: new Date()
       }
     ]);
 
+    // 8. Create mock Messages for analytics
     const messageDocs = [];
     const statuses = ['sent', 'delivered', 'read'];
     for (let i = 0; i < 50; i++) {
