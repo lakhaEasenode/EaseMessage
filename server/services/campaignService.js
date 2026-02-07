@@ -77,6 +77,58 @@ class CampaignService {
     }
 
     /**
+     * Update a draft or scheduled campaign
+     */
+    async updateCampaign(userId, campaignId, updateData) {
+        const campaign = await Campaign.findOne({ _id: campaignId, user: userId });
+        if (!campaign) throw new Error('Campaign not found');
+        if (!['draft', 'scheduled'].includes(campaign.status)) {
+            throw new Error('Can only edit draft or scheduled campaigns');
+        }
+
+        const { name, phoneNumberId, templateId, listId, scheduledAt, sendingInterval } = updateData;
+
+        if (phoneNumberId && phoneNumberId !== campaign.phoneNumberId.toString()) {
+            const phone = await WhatsAppPhoneNumber.findOne({ _id: phoneNumberId, userId });
+            if (!phone) throw new Error('Invalid phone number');
+        }
+        if (templateId && templateId !== campaign.templateId.toString()) {
+            const template = await Template.findById(templateId);
+            if (!template || template.status !== 'APPROVED') throw new Error('Invalid or unapproved template');
+        }
+        if (listId && listId !== campaign.listId.toString()) {
+            const list = await List.findOne({ _id: listId, userId });
+            if (!list) throw new Error('Invalid list');
+        }
+
+        if (name) campaign.name = name;
+        if (phoneNumberId) campaign.phoneNumberId = phoneNumberId;
+        if (templateId) campaign.templateId = templateId;
+        if (listId) campaign.listId = listId;
+        if (scheduledAt !== undefined) {
+            campaign.scheduledAt = scheduledAt || null;
+            campaign.status = scheduledAt ? 'scheduled' : 'draft';
+        }
+        if (sendingInterval !== undefined) campaign.sendingInterval = sendingInterval;
+        campaign.updatedAt = Date.now();
+
+        return await campaign.save();
+    }
+
+    /**
+     * Delete a draft or scheduled campaign
+     */
+    async deleteCampaign(userId, campaignId) {
+        const campaign = await Campaign.findOne({ _id: campaignId, user: userId });
+        if (!campaign) throw new Error('Campaign not found');
+        if (!['draft', 'scheduled'].includes(campaign.status)) {
+            throw new Error('Can only delete draft or scheduled campaigns');
+        }
+        await Campaign.deleteOne({ _id: campaignId });
+        return { msg: 'Campaign deleted' };
+    }
+
+    /**
      * Get all campaigns for a user
      */
     async getCampaigns(userId) {

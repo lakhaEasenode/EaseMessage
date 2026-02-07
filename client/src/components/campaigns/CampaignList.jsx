@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Eye, Calendar, CheckCircle, Clock, AlertCircle, FileText, Send, User } from 'lucide-react';
 
-const CampaignList = ({ campaigns, loading, onCreateEndpoint }) => {
+const CampaignList = ({ campaigns, loading, onCreateEndpoint, onView }) => {
 
     const getStatusBadge = (status) => {
         const styles = {
@@ -107,7 +107,10 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint }) => {
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <button
+                                        onClick={() => onView(campaign._id)}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    >
                                         <Eye size={18} />
                                     </button>
                                 </td>

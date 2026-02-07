@@ -41,6 +41,32 @@ class CampaignController {
     }
 
     /**
+     * Update a campaign (draft/scheduled only)
+     */
+    async updateCampaign(req, res) {
+        try {
+            const campaign = await campaignService.updateCampaign(req.user.id, req.params.id, req.body);
+            res.json(campaign);
+        } catch (err) {
+            console.error('Error updating campaign:', err.message);
+            res.status(400).json({ msg: err.message });
+        }
+    }
+
+    /**
+     * Delete a campaign (draft/scheduled only)
+     */
+    async deleteCampaign(req, res) {
+        try {
+            const result = await campaignService.deleteCampaign(req.user.id, req.params.id);
+            res.json(result);
+        } catch (err) {
+            console.error('Error deleting campaign:', err.message);
+            res.status(400).json({ msg: err.message });
+        }
+    }
+
+    /**
      * Get verified templates for a selected phone number
      */
     async getVerifiedTemplates(req, res) {

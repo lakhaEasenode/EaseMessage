@@ -23,4 +23,14 @@ router.get('/templates/:phoneNumberId', auth, campaignController.getVerifiedTemp
 // @access  Private
 router.get('/:id', auth, campaignController.getCampaign);
 
+// @route   PUT api/campaigns/:id
+// @desc    Update a campaign (draft/scheduled only)
+// @access  Private
+router.put('/:id', auth, campaignController.updateCampaign);
+
+// @route   DELETE api/campaigns/:id
+// @desc    Delete a campaign (draft/scheduled only)
+// @access  Private
+router.delete('/:id', auth, campaignController.deleteCampaign);
+
 module.exports = router;
