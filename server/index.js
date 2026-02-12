@@ -17,14 +17,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Connect to Database
-// Note: connectDB() is not defined in the original document. Assuming it's meant to be added or is a placeholder.
-// For now, keeping the original connection logic in startServer().
-// If connectDB() is a new function, it needs to be defined.
-
 // Init Middleware
-app.use(express.json({ extended: false })); // Changed from app.use(express.json());
-app.use(cors()); // Changed from specific cors config
+app.use(express.json({ extended: false }));
+app.use(cors());
 
 // Register Models explicitly
 require('./models/User');
@@ -35,16 +30,6 @@ require('./models/List');
 require('./models/Message');
 require('./models/Template');
 require('./models/Campaign');
-
-// Routes
-app.use('/api/auth', require('./routes/auth')); // Changed from const authRoutes = require('./routes/auth'); app.use('/api/auth', authRoutes);
-const contactRoutes = require('./routes/contacts');
-const listRoutes = require('./routes/lists');
-const statsRoutes = require('./routes/stats');
-const campaignRoutes = require('./routes/campaigns');
-const whatsappRoutes = require('./routes/whatsapp');
-const templateRoutes = require('./routes/templates');
-const dashboardRoutes = require('./routes/dashboard');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -214,10 +199,37 @@ const startServer = async () => {
 
     await seedData();
 
-    const { startScheduler } = require('./schedulers/campaignScheduler');
+    // Initialize Redis and campaign workers
+    let workersStarted = false;
+    try {
+      const { getRedisConnection } = require('./config/redis');
+      const redis = getRedisConnection();
+      await redis.ping();
+
+      const { startWorkers, stopWorkers } = require('./workers');
+      await startWorkers();
+      workersStarted = true;
+
+      // Graceful shutdown
+      const shutdown = async (signal) => {
+        console.log(`\n${signal} received. Shutting down gracefully...`);
+        await stopWorkers();
+        const { closeRedis } = require('./config/redis');
+        await closeRedis();
+        process.exit(0);
+      };
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
+    } catch (redisErr) {
+      console.warn('Redis not available:', redisErr.message);
+      console.warn('Campaign queue processing will not work. Start Redis to enable campaigns.');
+    }
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
-      startScheduler();
+      if (!workersStarted) {
+        console.warn('Campaign workers NOT started (Redis unavailable)');
+      }
     });
   } catch (err) {
     console.error(err);

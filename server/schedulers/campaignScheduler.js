@@ -1,28 +1,24 @@
-const Campaign = require('../models/Campaign');
-const campaignService = require('../services/campaignService');
+const { getOrchestratorQueue } = require('../queues/campaignQueue');
 
-const startScheduler = () => {
-    console.log('Campaign scheduler started (checking every 60s)');
+/**
+ * Initialize the scheduled campaign checker as a BullMQ repeatable job.
+ * Replaces the old setInterval-based approach.
+ *
+ * The repeatable job:
+ * - Runs every 30 seconds
+ * - Survives process restarts (persisted in Redis)
+ * - Guaranteed single execution (even with multiple processes)
+ */
+const startScheduler = async () => {
+    const orchestratorQueue = getOrchestratorQueue();
 
-    setInterval(async () => {
-        try {
-            const dueCampaigns = await Campaign.find({
-                status: 'scheduled',
-                scheduledAt: { $lte: new Date() }
-            });
+    // Add repeatable job (idempotent — BullMQ deduplicates by repeat key)
+    await orchestratorQueue.add('check-scheduled', {}, {
+        repeat: { every: 30000 },
+        removeOnComplete: true
+    });
 
-            for (const campaign of dueCampaigns) {
-                console.log(`Starting scheduled campaign: ${campaign.name} (${campaign._id})`);
-                try {
-                    await campaignService.startCampaign(campaign.user.toString(), campaign._id.toString());
-                } catch (err) {
-                    console.error(`Failed to start campaign ${campaign._id}:`, err.message);
-                }
-            }
-        } catch (err) {
-            console.error('Scheduler error:', err.message);
-        }
-    }, 60000);
+    console.log('Campaign scheduler started (BullMQ repeatable, every 30s)');
 };
 
 module.exports = { startScheduler };

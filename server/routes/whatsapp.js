@@ -239,6 +239,50 @@ router.post('/webhook', async (req, res) => {
                     console.log(`Received message for unknown Phone Number ID: ${phoneNumberId}`);
                 }
             }
+
+            // Handle delivery status updates (sent, delivered, read, failed)
+            const value = body.entry[0]?.changes?.[0]?.value;
+            const statuses = value?.statuses;
+            if (statuses && statuses.length > 0) {
+                const Message = require('../models/Message');
+                const Campaign = require('../models/Campaign');
+                const statusOrder = { failed: 0, sent: 1, delivered: 2, read: 3 };
+
+                for (const statusUpdate of statuses) {
+                    const wamid = statusUpdate.id;
+                    const newStatus = statusUpdate.status;
+
+                    if (!wamid || !statusOrder.hasOwnProperty(newStatus)) continue;
+
+                    const message = await Message.findOne({ wamid });
+                    if (!message) continue;
+
+                    // Only progress forward (sent → delivered → read), never backwards
+                    if ((statusOrder[newStatus] || 0) > (statusOrder[message.status] || 0)) {
+                        message.status = newStatus;
+                        if (newStatus === 'failed' && statusUpdate.errors?.[0]) {
+                            message.errorCode = statusUpdate.errors[0].code;
+                            message.errorMessage = statusUpdate.errors[0].title;
+                        }
+                        await message.save();
+                    }
+
+                    // Update campaign stats if this message belongs to a campaign
+                    if (message.campaignId && ['delivered', 'read'].includes(newStatus)) {
+                        await Campaign.updateOne(
+                            { _id: message.campaignId },
+                            { $inc: { [`stats.${newStatus}`]: 1 } }
+                        );
+                    }
+                    if (message.campaignId && newStatus === 'failed') {
+                        await Campaign.updateOne(
+                            { _id: message.campaignId },
+                            { $inc: { 'stats.deliveryFailed': 1 } }
+                        );
+                    }
+                }
+            }
+
             res.sendStatus(200);
         } else {
             res.sendStatus(404);
