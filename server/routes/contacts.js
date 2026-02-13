@@ -182,7 +182,7 @@ router.get('/:id', auth, async (req, res) => {
 // @desc    Create a new contact
 // @access  Private
 router.post('/', auth, async (req, res) => {
-    const { firstName, lastName, countryCode, phoneNumber, email, companyName, sheetName, tags, optedIn } = req.body;
+    const { firstName, lastName, countryCode, phoneNumber, email, companyName, sheetName, tags, optedIn, listIds } = req.body;
 
     try {
         if (!firstName || !phoneNumber) {
@@ -215,12 +215,25 @@ router.post('/', auth, async (req, res) => {
             companyName,
             sheetName,
             tags: tags || [],
+            lists: Array.isArray(listIds) ? listIds : [],
             optedIn: true,
             optInSource: 'manual',
             optInDate: new Date()
         });
 
         const contact = await newContact.save();
+
+        // Update lists to include the new contact
+        if (Array.isArray(listIds) && listIds.length > 0) {
+            await List.updateMany(
+                { _id: { $in: listIds } },
+                {
+                    $addToSet: { contacts: contact._id },
+                    $inc: { contactCount: 1 }
+                }
+            );
+        }
+
         res.json(contact);
     } catch (err) {
         console.error(err.message);

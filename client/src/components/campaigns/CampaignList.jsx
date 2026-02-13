@@ -1,23 +1,28 @@
-import { useState } from 'react';
-import { Plus, Eye, Calendar, CheckCircle, Clock, AlertCircle, FileText, Send, User } from 'lucide-react';
+import { Plus, Eye, Calendar, CheckCircle, Clock, AlertCircle, FileText, Send, Pause, XCircle, Loader } from 'lucide-react';
 
-const CampaignList = ({ campaigns, loading, onCreateEndpoint }) => {
+const CampaignList = ({ campaigns, loading, onCreateEndpoint, onView }) => {
 
     const getStatusBadge = (status) => {
         const styles = {
             draft: 'bg-gray-100 text-gray-700 border-gray-200',
             scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+            queued: 'bg-yellow-50 text-yellow-700 border-yellow-200',
             running: 'bg-purple-50 text-purple-700 border-purple-200',
+            paused: 'bg-orange-50 text-orange-700 border-orange-200',
             completed: 'bg-green-50 text-green-700 border-green-200',
-            failed: 'bg-red-50 text-red-700 border-red-200'
+            failed: 'bg-red-50 text-red-700 border-red-200',
+            cancelled: 'bg-gray-100 text-gray-500 border-gray-200'
         };
 
         const icons = {
             draft: <FileText size={12} />,
             scheduled: <Clock size={12} />,
-            running: <Send size={12} />,
+            queued: <Loader size={12} className="animate-spin" />,
+            running: <Send size={12} className="animate-pulse" />,
+            paused: <Pause size={12} />,
             completed: <CheckCircle size={12} />,
-            failed: <AlertCircle size={12} />
+            failed: <AlertCircle size={12} />,
+            cancelled: <XCircle size={12} />
         };
 
         return (
@@ -26,6 +31,61 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint }) => {
                 {status}
             </span>
         );
+    };
+
+    const getProgressInfo = (campaign) => {
+        const stats = campaign.stats;
+        if (!stats) return null;
+
+        if (['running', 'queued'].includes(campaign.status) && stats.totalToSend > 0) {
+            const pct = Math.round((stats.processed / stats.totalToSend) * 100);
+            return (
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className="font-bold text-purple-600">{pct}%</span>
+                        <span className="text-gray-400">{stats.processed}/{stats.totalToSend}</span>
+                    </div>
+                    <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                        <div className="h-1.5 rounded-full bg-purple-500 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                </div>
+            );
+        }
+
+        if (campaign.status === 'completed' && stats.sent > 0) {
+            const deliveryRate = stats.delivered > 0 ? Math.round((stats.delivered / stats.sent) * 100) : 0;
+            return (
+                <div className="flex items-center gap-3 text-xs">
+                    <div className="flex flex-col items-center">
+                        <span className="font-bold text-gray-800">{stats.sent}</span>
+                        <span className="text-gray-400 text-[10px] uppercase">Sent</span>
+                    </div>
+                    <div className="w-px h-6 bg-gray-100"></div>
+                    <div className="flex flex-col items-center">
+                        <span className="font-bold text-green-600">{deliveryRate}%</span>
+                        <span className="text-gray-400 text-[10px] uppercase">Delivered</span>
+                    </div>
+                </div>
+            );
+        }
+
+        if (stats.sent > 0 || stats.failed > 0) {
+            return (
+                <div className="flex items-center gap-3 text-xs">
+                    <div className="flex flex-col items-center">
+                        <span className="font-bold text-gray-800">{stats.sent}</span>
+                        <span className="text-gray-400 text-[10px] uppercase">Sent</span>
+                    </div>
+                    <div className="w-px h-6 bg-gray-100"></div>
+                    <div className="flex flex-col items-center">
+                        <span className="font-bold text-green-600">{stats.read}</span>
+                        <span className="text-gray-400 text-[10px] uppercase">Read</span>
+                    </div>
+                </div>
+            );
+        }
+
+        return <span className="text-xs text-gray-400">-</span>;
     };
 
     if (loading) {
@@ -90,24 +150,13 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint }) => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    {campaign.stats ? (
-                                        <div className="flex items-center gap-3 text-xs">
-                                            <div className="flex flex-col items-center">
-                                                <span className="font-bold text-gray-800">{campaign.stats.sent}</span>
-                                                <span className="text-gray-400 text-[10px] uppercase">Sent</span>
-                                            </div>
-                                            <div className="w-px h-6 bg-gray-100"></div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="font-bold text-green-600">{campaign.stats.read}</span>
-                                                <span className="text-gray-400 text-[10px] uppercase">Read</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs text-gray-400">-</span>
-                                    )}
+                                    {getProgressInfo(campaign)}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <button
+                                        onClick={() => onView(campaign._id)}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    >
                                         <Eye size={18} />
                                     </button>
                                 </td>

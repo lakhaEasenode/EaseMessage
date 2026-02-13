@@ -91,7 +91,12 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
     const handleSubmit = async () => {
         try {
             setSubmitting(true);
-            await axios.post(`${API_URL}/campaigns`, formData, config);
+            const payload = { ...formData };
+            // Convert local datetime to UTC ISO string for the backend
+            if (payload.scheduledAt) {
+                payload.scheduledAt = new Date(payload.scheduledAt).toISOString();
+            }
+            await axios.post(`${API_URL}/campaigns`, payload, config);
             onSuccess();
         } catch (err) {
             console.error('Error creating campaign:', err);

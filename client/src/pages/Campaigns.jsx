@@ -4,12 +4,14 @@ import { Rocket, Plus } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CampaignList from '../components/campaigns/CampaignList';
 import CreateCampaign from '../components/campaigns/CreateCampaign';
+import CampaignDetail from '../components/campaigns/CampaignDetail';
 
 const Campaigns = () => {
     const { token } = useContext(AuthContext);
     const [view, setView] = useState('list'); // 'list' | 'create'
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [selectedCampaignId, setSelectedCampaignId] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
@@ -57,8 +59,19 @@ const Campaigns = () => {
                         campaigns={campaigns}
                         loading={loading}
                         onCreateEndpoint={() => setView('create')}
+                        onView={(id) => setSelectedCampaignId(id)}
                     />
                 </>
+            )}
+
+            {selectedCampaignId && (
+                <CampaignDetail
+                    campaignId={selectedCampaignId}
+                    onClose={() => {
+                        setSelectedCampaignId(null);
+                        fetchCampaigns();
+                    }}
+                />
             )}
 
             {view === 'create' && (
