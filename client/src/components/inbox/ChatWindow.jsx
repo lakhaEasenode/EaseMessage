@@ -1,12 +1,13 @@
 import { useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
-import { MoreVertical, Phone, Video, ChevronLeft, Info } from 'lucide-react';
+import { ChevronLeft, Info, ChevronUp } from 'lucide-react';
 
 import StatusSelector from './StatusSelector';
 
-const ChatWindow = ({ conversation, messages, onSendMessage, onStatusChange, onBack, onDetails }) => {
+const ChatWindow = ({ conversation, messages, onSendMessage, onStatusChange, onBack, onDetails, draft, onDraftChange, hasMoreMessages, onLoadMore }) => {
     const bottomRef = useRef(null);
+    const messagesContainerRef = useRef(null);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -67,19 +68,23 @@ const ChatWindow = ({ conversation, messages, onSendMessage, onStatusChange, onB
                     >
                         <Info size={20} />
                     </button>
-
-                    <div className="hidden md:flex items-center gap-2">
-                        <div className="h-6 w-px bg-gray-200 mx-2"></div>
-                        <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors"><Phone size={20} /></button>
-                        <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors"><Video size={20} /></button>
-                        <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors"><MoreVertical size={20} /></button>
-                    </div>
                 </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Background Pattern Overlay if needed, or just color */}
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Load More Button */}
+                {hasMoreMessages && (
+                    <div className="flex justify-center">
+                        <button
+                            onClick={onLoadMore}
+                            className="flex items-center gap-1 px-4 py-1.5 text-xs font-medium text-gray-500 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+                        >
+                            <ChevronUp size={14} />
+                            Load older messages
+                        </button>
+                    </div>
+                )}
                 {messages.map((msg) => (
                     <MessageBubble
                         key={msg._id}
@@ -95,6 +100,8 @@ const ChatWindow = ({ conversation, messages, onSendMessage, onStatusChange, onB
                 contactId={contact._id}
                 lastInboundTime={lastInbound ? lastInbound.timestamp : null}
                 onSend={onSendMessage}
+                draft={draft}
+                onDraftChange={onDraftChange}
             />
         </div>
     );

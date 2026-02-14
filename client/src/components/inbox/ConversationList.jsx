@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Search, Filter, Plus, CheckCircle, Clock, AlertCircle, ChevronDown, Layers } from 'lucide-react';
+import { Search, Plus, CheckCircle, Clock, AlertCircle, ChevronDown, Layers } from 'lucide-react';
 
-const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter, onNewMessage }) => {
+const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter, onNewMessage, searchQuery, onSearchChange }) => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     // Helper to format time
@@ -61,6 +61,8 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     <input
                         type="text"
                         placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => onSearchChange(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 bg-gray-100 border-none rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 transition-all text-xs font-medium placeholder:text-gray-400"
                     />
                 </div>
@@ -119,6 +121,7 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     const statusConfig = getStatusConfig(status);
                     const StatusIcon = statusConfig.icon;
                     const isActive = activeId === conv.contact._id;
+                    const unread = conv.unreadCount || 0;
 
                     return (
                         <div
@@ -133,20 +136,22 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
 
                             <div className="flex justify-between items-start mb-0.5 relative">
                                 <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                                    <h3 className="font-bold text-gray-900 text-sm truncate">
+                                    <h3 className={`text-sm truncate ${unread > 0 ? 'font-extrabold text-gray-900' : 'font-bold text-gray-900'}`}>
                                         {conv.contact.firstName} {conv.contact.lastName}
                                     </h3>
                                     <StatusIcon size={12} className={statusConfig.color} />
                                 </div>
-                                {conv.lastMessage && (
-                                    <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap pt-0.5">
-                                        {formatTime(conv.lastMessage.timestamp)}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {conv.lastMessage && (
+                                        <span className={`text-[10px] whitespace-nowrap pt-0.5 ${unread > 0 ? 'text-green-600 font-bold' : 'text-gray-400 font-medium'}`}>
+                                            {formatTime(conv.lastMessage.timestamp)}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex justify-between items-end">
-                                <p className={`text-xs truncate max-w-[200px] leading-relaxed ${isActive ? 'text-gray-700' : 'text-gray-500'}`}>
+                                <p className={`text-xs truncate max-w-[180px] leading-relaxed ${unread > 0 ? 'font-semibold text-gray-800' : (isActive ? 'text-gray-700' : 'text-gray-500')}`}>
                                     {conv.lastMessage
                                         ? (conv.lastMessage.type === 'template' ?
                                             <span className="flex items-center gap-1.5">
@@ -157,6 +162,11 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                                         : <span className="italic opacity-80">Start a conversation</span>
                                     }
                                 </p>
+                                {unread > 0 && (
+                                    <span className="ml-2 min-w-[20px] h-5 flex items-center justify-center bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 flex-shrink-0">
+                                        {unread > 99 ? '99+' : unread}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     );

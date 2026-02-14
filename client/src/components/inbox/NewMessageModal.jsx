@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Search, X, MessageSquarePlus, User, Loader2 } from 'lucide-react';
+import { Search, X, MessageSquarePlus, Loader2 } from 'lucide-react';
 import AuthContext from '../../context/AuthContext';
+import useApprovedTemplates from '../../hooks/useApprovedTemplates';
 
 const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
     const { token } = useContext(AuthContext);
@@ -10,8 +11,8 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
     const [contacts, setContacts] = useState([]);
     const [filteredContacts, setFilteredContacts] = useState([]);
     const [selectedContact, setSelectedContact] = useState(null);
-    const [templates, setTemplates] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [contactsLoading, setContactsLoading] = useState(false);
+    const { templates, loading: templatesLoading, fetchTemplates, resetTemplates } = useApprovedTemplates();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
@@ -21,12 +22,13 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
             setStep(1);
             setSearchQuery('');
             setSelectedContact(null);
+            resetTemplates();
         }
     }, [isOpen]);
 
     const fetchContacts = async () => {
         try {
-            setLoading(true);
+            setContactsLoading(true);
             const config = { headers: { 'x-auth-token': token } };
             const res = await axios.get(`${API_URL}/contacts`, config);
             setContacts(res.data);
@@ -34,54 +36,7 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
         } catch (err) {
             console.error("Failed to load contacts", err);
         } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchTemplates = async () => {
-        try {
-            setLoading(true);
-            const config = { headers: { 'x-auth-token': token } };
-
-            // 1. Fetch Templates and Accounts in parallel
-            const [templatesRes, accountsRes] = await Promise.all([
-                axios.get(`${API_URL}/templates`, config),
-                axios.get(`${API_URL}/whatsapp/accounts`, config)
-            ]);
-
-            const allTemplates = templatesRes.data;
-            const accounts = accountsRes.data;
-
-            // 2. Find Default WABA
-            let defaultWabaId = null;
-            for (const acc of accounts) {
-                if (acc.phoneNumbers && acc.phoneNumbers.some(p => p.isDefault)) {
-                    defaultWabaId = acc._id;
-                    break;
-                }
-            }
-
-            // 3. Filter Templates
-            const approved = allTemplates.filter(t => t.status === 'APPROVED');
-
-            if (defaultWabaId) {
-                const filtered = approved.filter(t => {
-                    // t.wabaId can be populated object or ID string
-                    const tWabaId = t.wabaId && (t.wabaId._id || t.wabaId);
-                    return tWabaId === defaultWabaId;
-                });
-                setTemplates(filtered);
-            } else {
-                // If no default account, maybe show all or none? 
-                // Showing all might confuse user if they can't send.
-                // But let's fallback to approved only if no default set (though buttons shouldn't work then)
-                setTemplates(approved);
-            }
-
-        } catch (err) {
-            console.error("Failed to load templates", err);
-        } finally {
-            setLoading(false);
+            setContactsLoading(false);
         }
     };
 
@@ -96,10 +51,14 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
         setFilteredContacts(filtered);
     };
 
-    const handleSelectContact = (contact) => {
+    const handleSelectContact = async (contact) => {
         setSelectedContact(contact);
-        fetchTemplates();
         setStep(2);
+        try {
+            await fetchTemplates();
+        } catch {
+            // Error logged in hook
+        }
     };
 
     const handleSelectTemplate = (template) => {
@@ -140,7 +99,7 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
                                 />
                             </div>
 
-                            {loading ? (
+                            {contactsLoading ? (
                                 <div className="flex justify-center py-8"><Loader2 className="animate-spin text-blue-600" /></div>
                             ) : (
                                 <div className="space-y-1">
@@ -180,7 +139,7 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
 
                             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Approved Templates</p>
 
-                            {loading ? (
+                            {templatesLoading ? (
                                 <div className="flex justify-center py-8"><Loader2 className="animate-spin text-blue-600" /></div>
                             ) : (
                                 <div className="space-y-3">
