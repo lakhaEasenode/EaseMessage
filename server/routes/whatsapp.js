@@ -4,6 +4,7 @@ const axios = require('axios');
 const auth = require('../middleware/auth');
 const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
 const WhatsAppPhoneNumber = require('../models/WhatsAppPhoneNumber');
+const { emitToUser } = require('../socket');
 
 // @route   POST api/whatsapp/connect
 // @desc    Connect a WhatsApp Business Account
@@ -205,19 +206,39 @@ router.post('/webhook', async (req, res) => {
                 const phoneRecord = await WhatsAppPhoneNumber.findOne({ phoneNumberId: phoneNumberId });
 
                 if (phoneRecord) {
+                    // Normalize the sender number: strip leading '+' and any non-digits
+                    const normalizedFrom = from.replace(/\D/g, '');
+                    // Try exact match on full number, then fallback to last 10 digits
                     let contact = await Contact.findOne({
                         userId: phoneRecord.userId,
-                        phoneNumber: { $regex: from.slice(-10) } // Simple match for now
+                        isDeleted: false,
+                        $or: [
+                            { phoneNumber: normalizedFrom },
+                            { phoneNumber: from },
+                            // Fallback: match stored countryCode+phoneNumber against the full 'from'
+                            // by checking if the stored phone ends with the last 10 digits
+                        ]
                     });
 
+                    // If no exact match, try last-10-digit match as fallback
+                    if (!contact && normalizedFrom.length >= 10) {
+                        const last10 = normalizedFrom.slice(-10);
+                        contact = await Contact.findOne({
+                            userId: phoneRecord.userId,
+                            isDeleted: false,
+                            phoneNumber: { $regex: last10 + '$' }
+                        });
+                    }
+
                     if (!contact) {
-                        // Create new contact
+                        // Create new contact with normalized number
+                        const profileName = body.entry[0].changes[0].value.contacts?.[0]?.profile?.name || 'Unknown';
                         contact = new Contact({
                             userId: phoneRecord.userId,
-                            firstName: body.entry[0].changes[0].value.contacts[0].profile.name || 'Unknown',
-                            lastName: 'WhatsApp',
-                            phoneNumber: from, // Store full number
-                            countryCode: '', // Already included in 'from' usually
+                            firstName: profileName,
+                            lastName: '',
+                            phoneNumber: normalizedFrom,
+                            countryCode: '',
                             optedIn: true,
                             optInSource: 'whatsapp_inbound',
                             optInDate: new Date()
@@ -229,12 +250,21 @@ router.post('/webhook', async (req, res) => {
                     const newMessage = new Message({
                         contact: contact._id,
                         content: msgText,
-                        type: msgBody.type === 'text' ? 'text' : 'image', // simplified
+                        type: ['text', 'image', 'video', 'document'].includes(msgBody.type) ? msgBody.type : 'text',
                         direction: 'inbound',
                         status: 'read', // Auto-mark as read for now or 'delivered'
                         timestamp: new Date(parseInt(msgBody.timestamp) * 1000)
                     });
                     await newMessage.save();
+
+                    // Emit real-time events to the user
+                    emitToUser(phoneRecord.userId.toString(), 'message:new', {
+                        message: newMessage,
+                        contactId: contact._id.toString()
+                    });
+                    emitToUser(phoneRecord.userId.toString(), 'conversation:updated', {
+                        contactId: contact._id.toString()
+                    });
                 } else {
                     console.log(`Received message for unknown Phone Number ID: ${phoneNumberId}`);
                 }
@@ -247,6 +277,14 @@ router.post('/webhook', async (req, res) => {
                 const Message = require('../models/Message');
                 const Campaign = require('../models/Campaign');
                 const statusOrder = { failed: 0, sent: 1, delivered: 2, read: 3 };
+
+                // Resolve userId once for status emissions
+                const statusPhoneNumberId = value.metadata?.phone_number_id;
+                let statusUserId = null;
+                if (statusPhoneNumberId) {
+                    const statusPhoneRecord = await WhatsAppPhoneNumber.findOne({ phoneNumberId: statusPhoneNumberId });
+                    if (statusPhoneRecord) statusUserId = statusPhoneRecord.userId.toString();
+                }
 
                 for (const statusUpdate of statuses) {
                     const wamid = statusUpdate.id;
@@ -265,6 +303,16 @@ router.post('/webhook', async (req, res) => {
                             message.errorMessage = statusUpdate.errors[0].title;
                         }
                         await message.save();
+
+                        // Emit status update to user
+                        if (statusUserId) {
+                            emitToUser(statusUserId, 'message:status', {
+                                messageId: message._id.toString(),
+                                contactId: message.contact.toString(),
+                                status: newStatus,
+                                wamid
+                            });
+                        }
                     }
 
                     // Update campaign stats if this message belongs to a campaign

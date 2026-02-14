@@ -8,6 +8,8 @@ import Contacts from './pages/Contacts';
 import WhatsAppAccounts from './pages/WhatsAppAccounts';
 import Templates from './pages/Templates';
 import AuthContext, { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
+import { ToastProvider } from './components/Toast';
 
 // Placeholder Pages
 import Campaigns from './pages/Campaigns';
@@ -25,6 +27,8 @@ const PrivateRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
+      <SocketProvider>
+      <ToastProvider>
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -41,6 +45,8 @@ function App() {
           </Route>
         </Routes>
       </Router>
+      </ToastProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }

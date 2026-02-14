@@ -1,55 +1,81 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Message = require('../models/Message');
 const Contact = require('../models/Contact');
 const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
+const WhatsAppPhoneNumber = require('../models/WhatsAppPhoneNumber');
 const axios = require('axios');
+const { emitToUser } = require('../socket');
 
 // @route   GET api/messages/conversations
 // @desc    Get all conversations (contacts with last message)
 // @access  Private
 router.get('/conversations', auth, async (req, res) => {
     try {
-        // 1. Aggregate messages to find the last message for each contact
+        // 1. Get the user's contact IDs first to scope the aggregation
+        const userContacts = await Contact.find({
+            userId: req.user.id,
+            isDeleted: false
+        }).select('_id');
+        const userContactIds = userContacts.map(c => c._id);
+
+        // 2. Aggregate messages scoped to only this user's contacts
         const lastMessages = await Message.aggregate([
+            { $match: { contact: { $in: userContactIds } } },
             { $sort: { timestamp: -1 } },
             {
                 $group: {
                     _id: "$contact",
-                    lastMessage: { $first: "$$ROOT" }
+                    lastMessage: { $first: "$$ROOT" },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [
+                                { $and: [
+                                    { $eq: ["$direction", "inbound"] },
+                                    { $ne: ["$status", "read"] }
+                                ]},
+                                1,
+                                0
+                            ]
+                        }
+                    }
                 }
             }
         ]);
 
-        // 2. Map results to a dictionary for easy lookup
+        // 3. Map results to a dictionary for easy lookup
         const messageMap = {};
         lastMessages.forEach(item => {
             if (item._id) {
-                messageMap[item._id.toString()] = item.lastMessage;
+                messageMap[item._id.toString()] = {
+                    lastMessage: item.lastMessage,
+                    unreadCount: item.unreadCount
+                };
             }
         });
 
-        // 3. Fetch only contacts that have messages
-        const contactIds = Object.keys(messageMap);
+        // 4. Fetch the full contact documents
+        const contactIds = Object.keys(messageMap).map(id => new mongoose.Types.ObjectId(id));
         const contacts = await Contact.find({
             _id: { $in: contactIds },
             userId: req.user.id,
             isDeleted: false
         });
 
-        // 4. Combine contact info with last message
+        // 5. Combine contact info with last message and unread count
         const conversations = contacts.map(contact => {
-            const lastMsg = messageMap[contact._id.toString()];
+            const data = messageMap[contact._id.toString()];
             return {
                 contact,
-                lastMessage: lastMsg || null,
-                // If no message, use contact creation date for sorting (fallback, though all should have message now)
-                sortTime: lastMsg ? new Date(lastMsg.timestamp) : new Date(contact.createdAt)
+                lastMessage: data?.lastMessage || null,
+                unreadCount: data?.unreadCount || 0,
+                sortTime: data?.lastMessage ? new Date(data.lastMessage.timestamp) : new Date(contact.createdAt)
             };
         });
 
-        // 5. Sort by most recent activity
+        // 6. Sort by most recent activity
         conversations.sort((a, b) => b.sortTime - a.sortTime);
 
         res.json(conversations);
@@ -64,9 +90,41 @@ router.get('/conversations', auth, async (req, res) => {
 // @access  Private
 router.get('/:contactId', auth, async (req, res) => {
     try {
+        // Verify the contact belongs to the authenticated user
+        const contact = await Contact.findOne({
+            _id: req.params.contactId,
+            userId: req.user.id,
+            isDeleted: false
+        });
+        if (!contact) {
+            return res.status(404).json({ msg: 'Contact not found' });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const skip = (page - 1) * limit;
+
+        const totalMessages = await Message.countDocuments({ contact: req.params.contactId });
+        const totalPages = Math.ceil(totalMessages / limit);
+
         const messages = await Message.find({ contact: req.params.contactId })
-            .sort({ timestamp: 1 }); // Oldest first
-        res.json(messages);
+            .sort({ timestamp: -1 }) // Newest first for pagination
+            .skip(skip)
+            .limit(limit);
+
+        // Reverse so oldest is first in the returned page (for chat display order)
+        messages.reverse();
+
+        res.json({
+            messages,
+            pagination: {
+                page,
+                limit,
+                totalMessages,
+                totalPages,
+                hasMore: page < totalPages
+            }
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -80,15 +138,14 @@ router.post('/send', auth, async (req, res) => {
     const { contactId, type, content, templateData } = req.body;
 
     try {
-        const contact = await Contact.findById(contactId);
+        // Verify the contact belongs to the authenticated user
+        const contact = await Contact.findOne({
+            _id: contactId,
+            userId: req.user.id,
+            isDeleted: false
+        });
         if (!contact) {
             return res.status(404).json({ msg: 'Contact not found' });
-        }
-
-        // Get Connected WhatsApp Account
-        const wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: req.user.id });
-        if (!wabaAccount || !wabaAccount.accessToken) {
-            return res.status(400).json({ msg: 'No connected WhatsApp Business Account found' });
         }
 
         // Check 24-hour window if NOT a template message
@@ -117,7 +174,6 @@ router.post('/send', auth, async (req, res) => {
         const phoneNumber = contact.countryCode.replace('+', '') + contact.phoneNumber;
 
         // Find the DEFAULT phone number for this user
-        const WhatsAppPhoneNumber = require('../models/WhatsAppPhoneNumber');
         const phoneRecord = await WhatsAppPhoneNumber.findOne({
             userId: req.user.id,
             isDefault: true
@@ -159,13 +215,16 @@ router.post('/send', auth, async (req, res) => {
             payload[type] = { link: content };
         }
 
-        // Call Graph API
+        // Call Graph API using the WABA associated with the default phone number
         const response = await axios.post(sendUrl, payload, {
             headers: {
-                'Authorization': `Bearer ${wabaAccount.accessToken}`,
+                'Authorization': `Bearer ${phoneWaba.accessToken}`,
                 'Content-Type': 'application/json'
             }
         });
+
+        // Extract wamid from Meta response for delivery tracking
+        const wamid = response.data?.messages?.[0]?.id || null;
 
         // Save to Database
         const newMessage = new Message({
@@ -174,10 +233,20 @@ router.post('/send', auth, async (req, res) => {
             type: type,
             direction: 'outbound',
             status: 'sent',
+            wamid: wamid,
             timestamp: new Date()
         });
 
         await newMessage.save();
+
+        // Emit to other tabs/devices for this user
+        emitToUser(req.user.id, 'message:sent', {
+            message: newMessage,
+            contactId: contactId
+        });
+        emitToUser(req.user.id, 'conversation:updated', {
+            contactId: contactId
+        });
 
         res.json(newMessage);
 
