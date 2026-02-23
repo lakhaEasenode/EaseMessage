@@ -11,11 +11,11 @@ const PhoneNumberSelector = ({ phoneNumbers, selectedPhoneId, onSelect }) => {
                         key={phone._id}
                         onClick={() => onSelect(phone._id)}
                         className={`relative flex items-center p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedPhoneId === phone._id
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-100 bg-white hover:border-blue-200 hover:bg-gray-50'
+                                ? 'border-primary-500 bg-primary-50'
+                                : 'border-gray-100 bg-white hover:border-primary-200 hover:bg-gray-50'
                             }`}
                     >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${selectedPhoneId === phone._id ? 'bg-blue-200 text-blue-700' : 'bg-gray-100 text-gray-500'
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${selectedPhoneId === phone._id ? 'bg-primary-200 text-primary-700' : 'bg-gray-100 text-gray-500'
                             }`}>
                             <Phone size={20} />
                         </div>
@@ -26,7 +26,7 @@ const PhoneNumberSelector = ({ phoneNumbers, selectedPhoneId, onSelect }) => {
                         </div>
 
                         {selectedPhoneId === phone._id && (
-                            <div className="text-blue-600">
+                            <div className="text-primary-600">
                                 <CheckCircle size={24} fill="currentColor" className="text-white" />
                             </div>
                         )}

@@ -28,13 +28,13 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                 return { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100', border: 'border-yellow-200' };
             case 'open':
             default:
-                return { icon: AlertCircle, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200' };
+                return { icon: AlertCircle, color: 'text-primary-500', bg: 'bg-primary-100', border: 'border-primary-200' };
         }
     };
 
     const filterOptions = [
         { id: 'all', label: 'All Messages', icon: Layers, color: 'text-gray-600' },
-        { id: 'open', label: 'Open', icon: AlertCircle, color: 'text-blue-500' },
+        { id: 'open', label: 'Open', icon: AlertCircle, color: 'text-primary-500' },
         { id: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-600' },
         { id: 'resolved', label: 'Resolved', icon: CheckCircle, color: 'text-green-500' }
     ];
@@ -50,7 +50,7 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     <h2 className="text-xl font-bold text-gray-900 tracking-tight">Inbox</h2>
                     <button
                         onClick={onNewMessage}
-                        className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md active:scale-95 group"
+                        className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-md active:scale-95 group"
                         title="New Message"
                     >
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -97,14 +97,14 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                                                 setFilter(opt.id);
                                                 setIsFilterOpen(false);
                                             }}
-                                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50'
+                                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-primary-50/50' : 'hover:bg-gray-50'
                                                 }`}
                                         >
                                             <Icon size={14} className={opt.color} />
                                             <span className={`text-xs ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-600'}`}>
                                                 {opt.label}
                                             </span>
-                                            {isSelected && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                            {isSelected && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
                                         </button>
                                     );
                                 })}
@@ -128,11 +128,11 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                             key={conv.contact._id}
                             onClick={() => onSelect(conv)}
                             className={`p-3 border-b border-gray-50 cursor-pointer transition-all duration-200 relative ${isActive
-                                ? 'bg-blue-50/60'
+                                ? 'bg-primary-50/60'
                                 : 'hover:bg-gray-50'
                                 }`}
                         >
-                            {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-600 rounded-r-full" />}
+                            {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary-600 rounded-r-full" />}
 
                             <div className="flex justify-between items-start mb-0.5 relative">
                                 <div className="flex items-center gap-1.5 min-w-0 pr-2">

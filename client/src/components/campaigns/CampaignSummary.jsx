@@ -4,7 +4,7 @@ const CampaignSummary = ({ formData, selectedPhone, selectedTemplate, selectedLi
     return (
         <div className="space-y-6">
             <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <Rocket className="text-blue-600" size={24} />
+                <Rocket className="text-primary-600" size={24} />
                 Review & Launch Campaign
             </h3>
 
@@ -53,13 +53,13 @@ const CampaignSummary = ({ formData, selectedPhone, selectedTemplate, selectedLi
                 </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
-                <div className="p-1 bg-blue-100 rounded-full text-blue-600 mt-0.5">
+            <div className="bg-primary-50 border border-primary-100 rounded-xl p-4 flex items-start gap-3">
+                <div className="p-1 bg-primary-100 rounded-full text-primary-600 mt-0.5">
                     <Rocket size={16} />
                 </div>
                 <div>
-                    <h5 className="text-sm font-bold text-blue-900">Ready to launch?</h5>
-                    <p className="text-xs text-blue-700 mt-1">
+                    <h5 className="text-sm font-bold text-primary-900">Ready to launch?</h5>
+                    <p className="text-xs text-primary-700 mt-1">
                         Your campaign will be created as a Draft. You can schedule it or send it manually later from the dashboard.
                     </p>
                 </div>
@@ -69,7 +69,7 @@ const CampaignSummary = ({ formData, selectedPhone, selectedTemplate, selectedLi
                 <button
                     onClick={onSubmit}
                     disabled={submitting}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold hover:scale-[1.01] active:scale-[0.99] transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                    className="w-full bg-primary-600 hover:bg-primary-700 text-white py-4 rounded-xl font-bold hover:scale-[1.01] active:scale-[0.99] transition-all shadow-xl shadow-primary-600/20 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
                 >
                     {submitting ? 'Creating Campaign...' : 'Make It Real 🚀'}
                 </button>

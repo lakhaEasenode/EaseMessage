@@ -18,17 +18,17 @@ const Sidebar = ({ mobile, onClose }) => {
 
     return (
         <aside
-            className={`${collapsed ? 'w-20' : mobile ? 'w-full' : 'w-64'} bg-white border-r border-blue-100 h-screen flex flex-col justify-between p-4 shadow-sm transition-all duration-300 ease-in-out relative`}
+            className={`${collapsed ? 'w-20' : mobile ? 'w-full' : 'w-64'} bg-white border-r border-primary-100 h-screen flex flex-col justify-between p-4 shadow-sm transition-all duration-300 ease-in-out relative`}
         >
             <div>
                 {/* Logo Section */}
                 <div className={`flex items-center gap-2 mb-8 px-2 ${collapsed ? 'justify-center' : ''}`}>
-                    <div className="min-w-8 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-                        W
+                    <div className="min-w-8 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">
+                        E
                     </div>
                     {!collapsed && (
                         <span className="text-xl font-bold text-gray-800 whitespace-nowrap overflow-hidden animate-in fade-in duration-200">
-                            WhatsMkt
+                            EaseMessage
                         </span>
                     )}
                 </div>
@@ -42,7 +42,7 @@ const Sidebar = ({ mobile, onClose }) => {
                             onClick={mobile ? onClose : undefined}
                             className={({ isActive }) =>
                                 `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group ${isActive
-                                    ? 'bg-blue-50 text-blue-600 font-medium'
+                                    ? 'bg-primary-50 text-primary-600 font-medium'
                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                 } ${collapsed ? 'justify-center' : ''}`
                             }
@@ -67,7 +67,7 @@ const Sidebar = ({ mobile, onClose }) => {
                     onClick={mobile ? onClose : undefined}
                     className={({ isActive }) =>
                         `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                            ? 'bg-blue-50 text-blue-600 font-medium'
+                            ? 'bg-primary-50 text-primary-600 font-medium'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         } ${collapsed ? 'justify-center' : ''}`
                     }

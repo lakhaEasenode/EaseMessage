@@ -109,9 +109,9 @@ const MessageInput = ({ contactId, lastInboundTime, onSend, draft = '', onDraftC
                                 <div
                                     key={t._id}
                                     onClick={() => handleSendTemplate(t)}
-                                    className="p-4 border rounded-xl hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group"
+                                    className="p-4 border rounded-xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group"
                                 >
-                                    <div className="font-bold text-sm text-gray-800 mb-1 group-hover:text-blue-700">{t.name}</div>
+                                    <div className="font-bold text-sm text-gray-800 mb-1 group-hover:text-primary-700">{t.name}</div>
                                     <p className="text-xs text-gray-500 line-clamp-2">{t.body}</p>
                                 </div>
                             ))}

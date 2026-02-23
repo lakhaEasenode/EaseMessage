@@ -137,7 +137,7 @@ const Templates = () => {
     return (
         <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex justify-between items-start mb-8">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Templates</h1>
                     <p className="text-gray-500 text-sm mt-1">Manage WhatsApp message templates</p>
@@ -147,13 +147,13 @@ const Templates = () => {
                         </div>
                     )}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3 shrink-0">
                     <button
                         onClick={handleSync}
                         disabled={syncing}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95"
+                        className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95 text-sm"
                     >
-                        <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+                        <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
                         {syncing ? 'Syncing...' : 'Refresh'}
                     </button>
                     <button
@@ -161,17 +161,17 @@ const Templates = () => {
                             setEditingTemplate(null);
                             setIsFormOpen(true);
                         }}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95"
+                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95 text-sm"
                     >
-                        <Plus size={18} />
+                        <Plus size={16} />
                         Create Template
                     </button>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-4 items-center justify-between">
-                <div className="relative flex-1 min-w-[200px]">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+                <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
@@ -181,12 +181,12 @@ const Templates = () => {
                         className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-sm"
                     />
                 </div>
-                <div className="flex gap-3 items-center">
+                <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
                     {/* WABA Multi-Select Dropdown */}
                     <div className="relative" ref={wabaDropdownRef}>
                         <button
                             onClick={() => setIsWabaDropdownOpen(!isWabaDropdownOpen)}
-                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm outline-none bg-white min-w-[180px] ${filterWaba.length > 0
+                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm outline-none bg-white w-full sm:min-w-[180px] ${filterWaba.length > 0
                                     ? 'border-green-500 text-green-700 bg-green-50'
                                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
                                 }`}
@@ -244,7 +244,7 @@ const Templates = () => {
                     <select
                         value={filterStatus}
                         onChange={e => setFilterStatus(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 focus:border-green-500 outline-none bg-white"
+                        className="flex-1 sm:flex-none px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 focus:border-green-500 outline-none bg-white"
                     >
                         <option value="ALL">All Status</option>
                         <option value="APPROVED">Approved</option>
@@ -254,7 +254,7 @@ const Templates = () => {
                     <select
                         value={filterCategory}
                         onChange={e => setFilterCategory(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 focus:border-green-500 outline-none bg-white"
+                        className="flex-1 sm:flex-none px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 focus:border-green-500 outline-none bg-white"
                     >
                         <option value="ALL">All Categories</option>
                         <option value="MARKETING">Marketing</option>
@@ -315,7 +315,7 @@ const Templates = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             {template.wabaId ? (
-                                                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                                                <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded border border-primary-100">
                                                     {template.wabaId.name || 'Unknown'}
                                                 </span>
                                             ) : (
@@ -353,7 +353,7 @@ const Templates = () => {
                                                         setEditingTemplate(copy);
                                                         setIsFormOpen(true);
                                                     }}
-                                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                                                     title="Duplicate"
                                                 >
                                                     <Copy size={16} />

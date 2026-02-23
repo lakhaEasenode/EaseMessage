@@ -61,7 +61,7 @@ const CampaignDetail = ({ campaignId, onClose }) => {
     const getStatusBadge = (status) => {
         const styles = {
             draft: 'bg-gray-100 text-gray-700 border-gray-200',
-            scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+            scheduled: 'bg-primary-50 text-primary-700 border-primary-200',
             queued: 'bg-yellow-50 text-yellow-700 border-yellow-200',
             running: 'bg-purple-50 text-purple-700 border-purple-200',
             paused: 'bg-orange-50 text-orange-700 border-orange-200',
@@ -163,7 +163,7 @@ const CampaignDetail = ({ campaignId, onClose }) => {
                         {/* Info Grid */}
                         <div className="grid grid-cols-1 gap-4">
                             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                                <div className="w-9 h-9 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                                <div className="w-9 h-9 bg-primary-100 text-primary-600 rounded-lg flex items-center justify-center">
                                     <Phone size={18} />
                                 </div>
                                 <div>
@@ -237,7 +237,7 @@ const CampaignDetail = ({ campaignId, onClose }) => {
                                     label="Sent"
                                     value={campaign.stats.sent}
                                     total={campaign.stats.totalToSend || (campaign.stats.sent + campaign.stats.failed)}
-                                    color="bg-blue-500"
+                                    color="bg-primary-500"
                                 />
                                 <StatBar
                                     label="Delivered"
@@ -269,7 +269,7 @@ const CampaignDetail = ({ campaignId, onClose }) => {
                                 <button
                                     onClick={() => handleAction('start')}
                                     disabled={actionLoading}
-                                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50"
+                                    className="flex-1 flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50"
                                 >
                                     {actionLoading === 'start' ? <Loader size={18} className="animate-spin" /> : <Play size={18} />}
                                     Start Campaign

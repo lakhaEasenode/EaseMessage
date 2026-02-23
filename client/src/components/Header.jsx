@@ -57,7 +57,7 @@ const Header = ({ onMenuClick }) => {
                         onClick={() => setDropdownOpen(!dropdownOpen)}
                         className="flex items-center gap-3 hover:bg-gray-50 p-1.5 pr-3 rounded-full transition-all border border-transparent hover:border-gray-100"
                     >
-                        <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
+                        <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-bold text-sm">
                             {user?.firstName ? user.firstName.charAt(0).toUpperCase() : <User size={16} />}
                         </div>
                         <div className="hidden md:block text-left">

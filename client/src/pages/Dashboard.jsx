@@ -40,14 +40,14 @@ const Dashboard = () => {
     }, [token]);
 
     const kpis = [
-        { title: 'Total Messages Sent', value: data.kpis.totalSent, change: 0, icon: Send, color: 'bg-blue-500' },
+        { title: 'Total Messages Sent', value: data.kpis.totalSent, change: 0, icon: Send, color: 'bg-primary-500' },
         { title: 'Active Campaigns', value: data.kpis.activeCampaigns, change: 0, icon: MessageSquare, color: 'bg-purple-500' },
         { title: 'Total Contacts', value: data.kpis.totalContacts, change: 0, icon: Users, color: 'bg-orange-500' },
         { title: 'Open Rate', value: `${data.kpis.openRate}%`, change: 0, icon: CheckCircle, color: 'bg-green-500' },
     ];
 
     if (loading) {
-        return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-blue-600" /></div>;
+        return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary-600" /></div>;
     }
 
     return (
@@ -58,7 +58,7 @@ const Dashboard = () => {
                     <button className="bg-white px-4 py-2 rounded-lg text-sm font-medium text-gray-600 border shadow-sm">
                         Export Report
                     </button>
-                    <button className="bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg shadow-blue-200">
+                    <button className="bg-primary-600 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg shadow-primary-200">
                         Create Campaign
                     </button>
                 </div>
@@ -85,7 +85,7 @@ const Dashboard = () => {
                             data.recentCampaigns.map((campaign) => (
                                 <div key={campaign._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                                        <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-bold">
                                             {campaign.name.charAt(0)}
                                         </div>
                                         <div>

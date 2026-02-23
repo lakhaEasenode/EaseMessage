@@ -18,13 +18,13 @@ const ICONS = {
 const STYLES = {
     success: 'bg-green-50 border-green-200 text-green-800',
     error: 'bg-red-50 border-red-200 text-red-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    info: 'bg-primary-50 border-primary-200 text-primary-800',
 };
 
 const ICON_STYLES = {
     success: 'text-green-500',
     error: 'text-red-500',
-    info: 'text-blue-500',
+    info: 'text-primary-500',
 };
 
 let toastId = 0;

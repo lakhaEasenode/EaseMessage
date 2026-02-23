@@ -5,7 +5,7 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint, onView }) => {
     const getStatusBadge = (status) => {
         const styles = {
             draft: 'bg-gray-100 text-gray-700 border-gray-200',
-            scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+            scheduled: 'bg-primary-50 text-primary-700 border-primary-200',
             queued: 'bg-yellow-50 text-yellow-700 border-yellow-200',
             running: 'bg-purple-50 text-purple-700 border-purple-200',
             paused: 'bg-orange-50 text-orange-700 border-orange-200',
@@ -99,14 +99,14 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint, onView }) => {
     if (campaigns.length === 0) {
         return (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
+                <div className="w-16 h-16 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center mb-4">
                     <Send size={32} />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">No Campaigns Yet</h3>
                 <p className="text-gray-500 max-w-sm mb-8">Create your first marketing campaign to get started reaching your customers efficiently.</p>
                 <button
                     onClick={onCreateEndpoint}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-primary-600/20 hover:scale-105 active:scale-95"
                 >
                     <Plus size={20} />
                     Create Campaign
@@ -130,7 +130,7 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint, onView }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {campaigns.map((campaign) => (
-                            <tr key={campaign._id} className="hover:bg-blue-50/30 transition-colors group">
+                            <tr key={campaign._id} className="hover:bg-primary-50/30 transition-colors group">
                                 <td className="px-6 py-4">
                                     <div className="flex flex-col">
                                         <span className="font-bold text-gray-800 text-sm mb-1">{campaign.name}</span>
@@ -155,7 +155,7 @@ const CampaignList = ({ campaigns, loading, onCreateEndpoint, onView }) => {
                                 <td className="px-6 py-4 text-right">
                                     <button
                                         onClick={() => onView(campaign._id)}
-                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                                     >
                                         <Eye size={18} />
                                     </button>

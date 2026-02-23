@@ -75,7 +75,7 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                        <MessageSquarePlus className="text-blue-600" size={20} />
+                        <MessageSquarePlus className="text-primary-600" size={20} />
                         {step === 1 ? 'New Conversation' : 'Select Template'}
                     </h3>
                     <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
@@ -95,21 +95,21 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
                                     value={searchQuery}
                                     onChange={handleSearch}
                                     autoFocus
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                 />
                             </div>
 
                             {contactsLoading ? (
-                                <div className="flex justify-center py-8"><Loader2 className="animate-spin text-blue-600" /></div>
+                                <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary-600" /></div>
                             ) : (
                                 <div className="space-y-1">
                                     {filteredContacts.map(contact => (
                                         <div
                                             key={contact._id}
                                             onClick={() => handleSelectContact(contact)}
-                                            className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl cursor-pointer transition-colors group"
+                                            className="flex items-center gap-3 p-3 hover:bg-primary-50 rounded-xl cursor-pointer transition-colors group"
                                         >
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm group-hover:from-blue-100 group-hover:to-blue-200 group-hover:text-blue-600 transition-colors">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm group-hover:from-primary-100 group-hover:to-primary-200 group-hover:text-primary-600 transition-colors">
                                                 {contact.firstName.charAt(0)}
                                             </div>
                                             <div>
@@ -126,28 +126,28 @@ const NewMessageModal = ({ isOpen, onClose, onSelect }) => {
                         </div>
                     ) : (
                         <div className="p-4">
-                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                            <div className="bg-primary-50 border border-primary-100 rounded-xl p-3 mb-4 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-bold text-xs">
                                     {selectedContact.firstName.charAt(0)}
                                 </div>
                                 <div className="text-sm">
                                     <span className="text-gray-500">To: </span>
                                     <span className="font-bold text-gray-800">{selectedContact.firstName} {selectedContact.lastName}</span>
                                 </div>
-                                <button onClick={() => setStep(1)} className="ml-auto text-xs font-bold text-blue-600 hover:underline">Change</button>
+                                <button onClick={() => setStep(1)} className="ml-auto text-xs font-bold text-primary-600 hover:underline">Change</button>
                             </div>
 
                             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Approved Templates</p>
 
                             {templatesLoading ? (
-                                <div className="flex justify-center py-8"><Loader2 className="animate-spin text-blue-600" /></div>
+                                <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary-600" /></div>
                             ) : (
                                 <div className="space-y-3">
                                     {templates.map(template => (
                                         <div
                                             key={template._id}
                                             onClick={() => handleSelectTemplate(template)}
-                                            className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all active:scale-[0.99]"
+                                            className="border border-gray-200 rounded-xl p-4 hover:border-primary-300 hover:bg-primary-50/30 cursor-pointer transition-all active:scale-[0.99]"
                                         >
                                             <div className="flex justify-between items-start mb-1">
                                                 <h4 className="font-bold text-sm text-gray-800">{template.name}</h4>

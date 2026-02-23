@@ -243,7 +243,7 @@ const startServer = async () => {
 
 // Routes Placeholders (root)
 app.get('/', (req, res) => {
-  res.send('B2B WhatsApp Marketing API is running');
+  res.send('EaseMessage API is running');
 });
 
 startServer();

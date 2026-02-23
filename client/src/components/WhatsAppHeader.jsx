@@ -62,7 +62,7 @@ const WhatsAppHeader = ({ accounts }) => {
                         <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Phone Numbers</p>
                         <h2 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalNumbers}</h2>
                     </div>
-                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center">
                         <CheckCircle size={20} />
                     </div>
                 </div>

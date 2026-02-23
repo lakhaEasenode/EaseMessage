@@ -179,7 +179,7 @@ const WhatsAppAccounts = () => {
                                                     {!num.isDefault && (
                                                         <button
                                                             onClick={() => handleSetDefault(num.phoneNumberId)}
-                                                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                                                            className="text-[10px] font-bold text-primary-600 hover:text-primary-700 hover:underline"
                                                         >
                                                             Set Default
                                                         </button>

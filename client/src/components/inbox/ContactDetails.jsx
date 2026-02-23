@@ -22,13 +22,13 @@ const ContactDetails = ({ contact, onBack }) => {
                     <ChevronLeft size={24} />
                 </button>
 
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center text-blue-600 text-3xl font-bold mb-4 shadow-inner">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center text-primary-600 text-3xl font-bold mb-4 shadow-inner">
                     {contact.firstName.charAt(0)}
                 </div>
                 <h2 className="text-xl font-bold text-gray-800 text-center">
                     {contact.firstName} {contact.lastName}
                 </h2>
-                <div className={`mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${contact.conversationStatus === 'open' ? 'bg-blue-100 text-blue-700' :
+                <div className={`mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${contact.conversationStatus === 'open' ? 'bg-primary-100 text-primary-700' :
                     contact.conversationStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-green-100 text-green-700'
                     }`}>
@@ -45,17 +45,17 @@ const ContactDetails = ({ contact, onBack }) => {
                     </h3>
                     <div className="space-y-3">
                         <div className="flex items-center gap-3 text-sm text-gray-700 bg-white p-2 rounded-lg border border-gray-100">
-                            <Phone size={16} className="text-blue-500" />
+                            <Phone size={16} className="text-primary-500" />
                             <span className="font-medium">{contact.phoneNumber}</span>
                         </div>
                         {contact.email && (
                             <div className="flex items-center gap-3 text-sm text-gray-700 bg-white p-2 rounded-lg border border-gray-100">
-                                <Mail size={16} className="text-blue-500" />
+                                <Mail size={16} className="text-primary-500" />
                                 <span className="truncate">{contact.email}</span>
                             </div>
                         )}
                         <div className="flex items-center gap-3 text-sm text-gray-700 bg-white p-2 rounded-lg border border-gray-100">
-                            <MapPin size={16} className="text-blue-500" />
+                            <MapPin size={16} className="text-primary-500" />
                             <span>{contact.countryCode === '+1' ? 'United States' : 'International'}</span>
                         </div>
                     </div>
@@ -70,7 +70,7 @@ const ContactDetails = ({ contact, onBack }) => {
                         {contact.tags && contact.tags.length > 0 ? (
                             contact.tags.map((tag, index) => (
                                 <span key={index} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white text-gray-700 text-xs font-semibold border border-gray-200 shadow-sm">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>
                                     {tag}
                                 </span>
                             ))
