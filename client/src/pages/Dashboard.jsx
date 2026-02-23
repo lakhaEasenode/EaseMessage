@@ -82,17 +82,24 @@ const Dashboard = () => {
                             data.recentCampaigns.map((campaign) => (
                                 <div key={campaign._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-bold">
+                                        <div className="w-10 h-10 shrink-0 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-bold">
                                             {campaign.name.charAt(0)}
                                         </div>
                                         <div>
                                             <h4 className="font-medium text-gray-900">{campaign.name}</h4>
-                                            <p className="text-xs text-gray-500">Status: {campaign.status}</p>
                                         </div>
                                     </div>
-                                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${campaign.status === 'sent' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-800'
-                                        }`}>
-                                        {campaign.status}
+                                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                                        campaign.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                        campaign.status === 'running' ? 'bg-blue-100 text-blue-700' :
+                                        campaign.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
+                                        campaign.status === 'queued' ? 'bg-yellow-100 text-yellow-700' :
+                                        campaign.status === 'paused' ? 'bg-orange-100 text-orange-700' :
+                                        campaign.status === 'failed' ? 'bg-red-100 text-red-700' :
+                                        campaign.status === 'cancelled' ? 'bg-red-50 text-red-400' :
+                                        'bg-gray-100 text-gray-700'
+                                    }`}>
+                                        {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                                     </span>
                                 </div>
                             ))

@@ -1,12 +1,12 @@
 const KPICard = ({ title, value, change, icon: Icon, color }) => {
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 glass-effect">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-sm font-medium text-gray-500">{title}</p>
+            <div className="flex justify-between items-start gap-3">
+                <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-500 leading-snug min-h-[2.5rem] line-clamp-2">{title}</p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-1">{value}</h3>
                 </div>
-                <div className={`p-2 rounded-lg ${color}`}>
+                <div className={`p-2 rounded-lg shrink-0 ${color}`}>
                     <Icon className="w-6 h-6 text-white" />
                 </div>
             </div>

@@ -10,11 +10,17 @@ const Message = require('../models/Message');
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const totalContacts = await Contact.countDocuments();
-        const activeCampaigns = await Campaign.countDocuments({ status: { $in: ['draft', 'scheduled'] } });
+        const userId = req.user.id;
 
-        // Aggregate message stats
+        const userContacts = await Contact.find({ userId, isDeleted: { $ne: true } }).select('_id');
+        const contactIds = userContacts.map(c => c._id);
+
+        const totalContacts = contactIds.length;
+        const activeCampaigns = await Campaign.countDocuments({ user: userId, status: { $in: ['draft', 'scheduled', 'queued', 'running'] } });
+
+        // Aggregate message stats for this user's contacts
         const messageStats = await Message.aggregate([
+            { $match: { contact: { $in: contactIds } } },
             {
                 $group: {
                     _id: null,
@@ -47,7 +53,7 @@ router.get('/', auth, async (req, res) => {
         ];
 
         // Get recent campaigns
-        const recentCampaigns = await Campaign.find().sort({ createdAt: -1 }).limit(5);
+        const recentCampaigns = await Campaign.find({ user: userId }).sort({ createdAt: -1 }).limit(5);
 
         res.json({
             kpis: {
