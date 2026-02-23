@@ -1,4 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { MessageSquare, Send, Users, CheckCircle, Loader } from 'lucide-react';
 import KPICard from '../components/KPICard';
@@ -7,6 +8,7 @@ import AuthContext from '../context/AuthContext';
 
 const Dashboard = () => {
     const { token } = useContext(AuthContext);
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({
         kpis: {
@@ -54,14 +56,9 @@ const Dashboard = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
-                <div className="flex gap-2">
-                    <button className="bg-white px-4 py-2 rounded-lg text-sm font-medium text-gray-600 border shadow-sm">
-                        Export Report
-                    </button>
-                    <button className="bg-primary-600 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg shadow-primary-200">
-                        Create Campaign
-                    </button>
-                </div>
+                <button onClick={() => navigate('/campaigns')} className="bg-primary-600 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg shadow-primary-200">
+                    Create Campaign
+                </button>
             </div>
 
             {/* KPI Section */}
