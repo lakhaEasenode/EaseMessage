@@ -33,7 +33,7 @@ const MessageBubble = ({ message, isOwn }) => {
                         {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isOwn && (
-                        <span className={`flex ml-0.5 ${message.status === 'read' ? 'text-blue-500' : 'text-gray-400'}`}>
+                        <span className={`flex ml-0.5 ${message.status === 'read' ? 'text-primary-500' : 'text-gray-400'}`}>
                             {message.status === 'read' ? <CheckCheck size={14} /> : <Check size={14} />}
                         </span>
                     )}

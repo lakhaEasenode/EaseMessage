@@ -172,7 +172,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData }) => {
                             </p>
                             <div className="flex justify-end items-center gap-1 mt-1 text-[10px] text-gray-500">
                                 <span>12:00 PM</span>
-                                <span className="text-blue-500 font-bold">✓✓</span>
+                                <span className="text-primary-500 font-bold">✓✓</span>
                             </div>
                         </div>
 

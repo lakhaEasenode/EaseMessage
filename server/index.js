@@ -1,8 +1,10 @@
 const express = require('express');
+const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const { initSocket } = require('./socket');
 const bcrypt = require('bcryptjs');
 const Contact = require('./models/Contact');
 const Campaign = require('./models/Campaign');
@@ -225,7 +227,10 @@ const startServer = async () => {
       console.warn('Campaign queue processing will not work. Start Redis to enable campaigns.');
     }
 
-    app.listen(PORT, () => {
+    const server = http.createServer(app);
+    initSocket(server);
+
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       if (!workersStarted) {
         console.warn('Campaign workers NOT started (Redis unavailable)');
@@ -238,7 +243,7 @@ const startServer = async () => {
 
 // Routes Placeholders (root)
 app.get('/', (req, res) => {
-  res.send('B2B WhatsApp Marketing API is running');
+  res.send('EaseMessage API is running');
 });
 
 startServer();

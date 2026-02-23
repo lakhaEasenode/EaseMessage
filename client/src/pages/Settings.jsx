@@ -89,7 +89,7 @@ const Settings = () => {
                 {/* Profile Section */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
                     <div className="p-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                        <div className="p-2 bg-primary-100 text-primary-600 rounded-lg">
                             <User size={18} />
                         </div>
                         <div>
@@ -105,7 +105,7 @@ const Settings = () => {
                                     type="text"
                                     value={profile.firstName}
                                     onChange={e => setProfile({ ...profile, firstName: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -116,7 +116,7 @@ const Settings = () => {
                                         type="text"
                                         value={profile.businessName}
                                         onChange={e => setProfile({ ...profile, businessName: e.target.value })}
-                                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                                         placeholder="Company Name"
                                     />
                                 </div>
@@ -134,7 +134,7 @@ const Settings = () => {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                                    className="flex items-center gap-2 px-5 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50"
                                 >
                                     <Save size={16} />
                                     Save Changes
@@ -163,7 +163,7 @@ const Settings = () => {
                                     type="password"
                                     value={password.currentPassword}
                                     onChange={e => setPassword({ ...password, currentPassword: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -172,7 +172,7 @@ const Settings = () => {
                                     type="password"
                                     value={password.newPassword}
                                     onChange={e => setPassword({ ...password, newPassword: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -181,7 +181,7 @@ const Settings = () => {
                                     type="password"
                                     value={password.confirmPassword}
                                     onChange={e => setPassword({ ...password, confirmPassword: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                                 />
                             </div>
                             <div className="flex justify-end pt-2">

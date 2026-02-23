@@ -135,8 +135,8 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                     </h2>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className={`h-2 rounded-full transition-all ${step >= 1 ? 'w-8 bg-blue-600' : 'w-2 bg-gray-200'}`} />
-                    <div className={`h-2 rounded-full transition-all ${step >= 2 ? 'w-8 bg-blue-600' : 'w-2 bg-gray-200'}`} />
+                    <div className={`h-2 rounded-full transition-all ${step >= 1 ? 'w-8 bg-primary-600' : 'w-2 bg-gray-200'}`} />
+                    <div className={`h-2 rounded-full transition-all ${step >= 2 ? 'w-8 bg-primary-600' : 'w-2 bg-gray-200'}`} />
                 </div>
             </div>
 
@@ -164,7 +164,7 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full text-lg px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                                        className="w-full text-lg px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
                                         placeholder="e.g. Summer Promo 2026"
                                         autoFocus
                                     />
@@ -207,9 +207,9 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                         {step === 2 && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                                 <div className="space-y-8">
-                                    <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+                                    <div className="bg-primary-50/50 p-6 rounded-2xl border border-primary-100">
                                         <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                            <Clock className="text-blue-600" size={20} />
+                                            <Clock className="text-primary-600" size={20} />
                                             Scheduling Options
                                         </h3>
 
@@ -222,7 +222,7 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                                                         type="datetime-local"
                                                         value={formData.scheduledAt}
                                                         onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
-                                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all"
                                                     />
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-2">Leave empty to send immediately.</p>
@@ -238,7 +238,7 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                                                         min="0"
                                                         value={formData.sendingInterval}
                                                         onChange={(e) => setFormData({ ...formData, sendingInterval: parseInt(e.target.value) || 0 })}
-                                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all"
                                                         placeholder="0"
                                                     />
                                                 </div>
@@ -286,7 +286,7 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                         <button
                             onClick={handleNext}
                             disabled={!isStepValid()}
-                            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:scale-100 hover:scale-105 active:scale-95 flex items-center gap-2"
+                            className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:scale-100 hover:scale-105 active:scale-95 flex items-center gap-2"
                         >
                             Next Step <ArrowRight size={20} />
                         </button>

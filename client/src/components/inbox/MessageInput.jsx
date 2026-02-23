@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Send, Paperclip, FileText, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import { Send, FileText, AlertCircle } from 'lucide-react';
+import useApprovedTemplates from '../../hooks/useApprovedTemplates';
 
-const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
-    const [message, setMessage] = useState('');
+const MessageInput = ({ contactId, lastInboundTime, onSend, draft = '', onDraftChange }) => {
+    const message = draft;
+    const setMessage = (val) => onDraftChange?.(contactId, val);
     const [isWindowExpired, setIsWindowExpired] = useState(false);
     const [showTemplateModal, setShowTemplateModal] = useState(false);
-    const [templates, setTemplates] = useState([]);
-    const [loadingTemplates, setLoadingTemplates] = useState(false);
+    const { templates, loading: loadingTemplates, fetchTemplates } = useApprovedTemplates();
 
     // Check 24-hour window
     useEffect(() => {
         if (!lastInboundTime) {
-            // If no inbound messages ever, window is technically "expired" for free-form (business initiated)
-            // Unless we consider business-initiated rules. For safety, let's say "Expired/Template Required" if no recent inbound.
             setIsWindowExpired(true);
             return;
         }
@@ -26,7 +24,7 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
         };
 
         checkWindow();
-        const interval = setInterval(checkWindow, 60000); // Check every minute
+        const interval = setInterval(checkWindow, 60000);
         return () => clearInterval(interval);
     }, [lastInboundTime]);
 
@@ -38,58 +36,11 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
     };
 
     const loadTemplates = async () => {
-        if (templates.length > 0) {
-            setShowTemplateModal(true);
-            return;
-        }
-
         try {
-            setLoadingTemplates(true);
-            const token = localStorage.getItem('token');
-            if (!token) {
-                console.error("No token found");
-                return;
-            }
-            const config = { headers: { 'x-auth-token': token } };
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
-
-            // 1. Fetch Templates and Accounts in parallel
-            const [templatesRes, accountsRes] = await Promise.all([
-                axios.get(`${API_URL}/templates`, config),
-                axios.get(`${API_URL}/whatsapp/accounts`, config)
-            ]);
-
-            const allTemplates = templatesRes.data;
-            const accounts = accountsRes.data;
-
-            // 2. Find Default WABA
-            let defaultWabaId = null;
-            for (const acc of accounts) {
-                if (acc.phoneNumbers && acc.phoneNumbers.some(p => p.isDefault)) {
-                    defaultWabaId = acc._id;
-                    break;
-                }
-            }
-
-            // 3. Filter Templates
-            const approved = allTemplates.filter(t => t.status === 'APPROVED');
-
-            if (defaultWabaId) {
-                const filtered = approved.filter(t => {
-                    const tWabaId = t.wabaId && (t.wabaId._id || t.wabaId);
-                    return tWabaId === defaultWabaId;
-                });
-                setTemplates(filtered);
-            } else {
-                setTemplates(approved);
-            }
-
+            await fetchTemplates();
             setShowTemplateModal(true);
-        } catch (err) {
-            console.error("Failed to load templates", err);
-            alert("Failed to load templates");
-        } finally {
-            setLoadingTemplates(false);
+        } catch {
+            // Error already logged in hook
         }
     };
 
@@ -97,7 +48,7 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
         onSend('template', null, {
             name: template.name,
             language: template.language,
-            components: [] // Logic for variables would go here
+            components: []
         });
         setShowTemplateModal(false);
     };
@@ -120,12 +71,6 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
                 </div>
             ) : (
                 <form onSubmit={handleSend} className="flex gap-2 items-center">
-                    <button
-                        type="button"
-                        className="p-3 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
-                    >
-                        <Paperclip size={20} />
-                    </button>
                     <button
                         type="button"
                         onClick={loadTemplates}
@@ -151,7 +96,7 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
                 </form>
             )}
 
-            {/* Template Modal - Simplified */}
+            {/* Template Modal */}
             {showTemplateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
@@ -164,9 +109,9 @@ const MessageInput = ({ contactId, lastInboundTime, onSend }) => {
                                 <div
                                     key={t._id}
                                     onClick={() => handleSendTemplate(t)}
-                                    className="p-4 border rounded-xl hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group"
+                                    className="p-4 border rounded-xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group"
                                 >
-                                    <div className="font-bold text-sm text-gray-800 mb-1 group-hover:text-blue-700">{t.name}</div>
+                                    <div className="font-bold text-sm text-gray-800 mb-1 group-hover:text-primary-700">{t.name}</div>
                                     <p className="text-xs text-gray-500 line-clamp-2">{t.body}</p>
                                 </div>
                             ))}

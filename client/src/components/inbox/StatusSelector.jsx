@@ -6,7 +6,7 @@ const StatusSelector = ({ status, onChange }) => {
     const ref = useRef(null);
 
     const statuses = [
-        { value: 'open', label: 'Open', icon: AlertCircle, color: 'text-blue-600', bg: 'bg-blue-100' },
+        { value: 'open', label: 'Open', icon: AlertCircle, color: 'text-primary-600', bg: 'bg-primary-100' },
         { value: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100' },
         { value: 'resolved', label: 'Resolved', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
     ];

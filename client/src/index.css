@@ -1,7 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  /* custom theme extensions if needed */
+  /* EaseExpense primary color: hsl(203, 83%, 51%) */
+  --color-primary-50: hsl(203, 83%, 96%);
+  --color-primary-100: hsl(203, 83%, 90%);
+  --color-primary-200: hsl(203, 83%, 80%);
+  --color-primary-300: hsl(203, 83%, 70%);
+  --color-primary-400: hsl(203, 83%, 60%);
+  --color-primary-500: hsl(203, 83%, 55%);
+  --color-primary-600: hsl(203, 83%, 51%);
+  --color-primary-700: hsl(203, 83%, 42%);
+  --color-primary-800: hsl(203, 83%, 32%);
+  --color-primary-900: hsl(203, 83%, 23%);
 }
 
 @layer utilities {

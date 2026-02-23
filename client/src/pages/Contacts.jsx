@@ -304,7 +304,7 @@ const Contacts = () => {
                     <button
                         onClick={() => setView('contacts')}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${view === 'contacts'
-                            ? 'bg-white text-blue-600 shadow-sm'
+                            ? 'bg-white text-primary-600 shadow-sm'
                             : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
@@ -313,7 +313,7 @@ const Contacts = () => {
                     <button
                         onClick={() => setView('lists')}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${view === 'lists'
-                            ? 'bg-white text-blue-600 shadow-sm'
+                            ? 'bg-white text-primary-600 shadow-sm'
                             : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
@@ -333,7 +333,7 @@ const Contacts = () => {
                             />
                             <button
                                 onClick={() => setIsAddContactOpen(!isAddContactOpen)}
-                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95"
+                                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95"
                             >
                                 <Plus size={18} />
                                 Add Contact
@@ -347,7 +347,7 @@ const Contacts = () => {
                                             setIsManualModalOpen(true);
                                             setIsAddContactOpen(false);
                                         }}
-                                        className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 transition-colors"
+                                        className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2 transition-colors"
                                     >
                                         <UserPlus size={16} />
                                         Manual Entry
@@ -358,7 +358,7 @@ const Contacts = () => {
                                             setIsAddContactOpen(false);
                                             setSelectedFile(null);
                                         }}
-                                        className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 transition-colors border-t border-gray-50"
+                                        className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2 transition-colors border-t border-gray-50"
                                     >
                                         <Upload size={16} />
                                         Upload CSV
@@ -369,7 +369,7 @@ const Contacts = () => {
                     ) : (
                         <button
                             onClick={() => setIsCreateListModalOpen(true)}
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95"
+                            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95"
                         >
                             <Plus size={18} />
                             Create List
@@ -390,7 +390,7 @@ const Contacts = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px]">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[400px] gap-3">
-                        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                        <Loader2 className="w-10 h-10 text-primary-600 animate-spin" />
                         <p className="text-gray-500 font-medium animate-pulse">Loading {view}...</p>
                     </div>
                 ) : (
@@ -399,13 +399,13 @@ const Contacts = () => {
                             <>
                                 {/* List Filter Badge */}
                                 {selectedListFilter && (
-                                    <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
-                                        <span className="text-xs font-medium text-blue-700">
+                                    <div className="px-4 py-2 bg-primary-50 border-b border-primary-100 flex items-center justify-between">
+                                        <span className="text-xs font-medium text-primary-700">
                                             Viewing contacts in: <span className="font-bold">{selectedListFilter.name}</span>
                                         </span>
                                         <button
                                             onClick={clearListFilter}
-                                            className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                            className="text-xs font-bold text-primary-600 hover:text-primary-800 flex items-center gap-1"
                                         >
                                             <X size={12} /> Clear Filter
                                         </button>
@@ -425,10 +425,10 @@ const Contacts = () => {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {contacts.map((contact) => (
-                                            <tr key={contact._id} className="hover:bg-blue-50/30 transition-colors group text-sm">
+                                            <tr key={contact._id} className="hover:bg-primary-50/30 transition-colors group text-sm">
                                                 <td className="px-6 py-3">
                                                     <div className="flex items-center gap-3 justify-start">
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs shadow-sm">
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 flex items-center justify-center font-bold text-xs shadow-sm">
                                                             {contact.firstName?.charAt(0)}
                                                         </div>
                                                         <div className="text-left leading-tight">
@@ -453,7 +453,7 @@ const Contacts = () => {
                                                         {contact.lists?.length > 0 ? (
                                                             <>
                                                                 {contact.lists.slice(0, contact.lists.length > 3 ? 2 : 3).map(l => (
-                                                                    <span key={l._id} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-medium">
+                                                                    <span key={l._id} className="text-[10px] bg-primary-50 text-primary-600 px-2 py-0.5 rounded border border-primary-100 font-medium">
                                                                         {l.name}
                                                                     </span>
                                                                 ))}
@@ -475,7 +475,7 @@ const Contacts = () => {
                                                 </td>
                                                 <td className="px-6 py-3">
                                                     <div className="flex justify-end gap-1.5">
-                                                        <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye size={16} /></button>
+                                                        <button className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Eye size={16} /></button>
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -548,7 +548,7 @@ const Contacts = () => {
                                             </td>
                                             <td className="px-6 py-3">
                                                 <div className="flex justify-end gap-1.5">
-                                                    <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye size={16} /></button>
+                                                    <button className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Eye size={16} /></button>
                                                     <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"><Edit size={16} /></button>
                                                     <button
                                                         onClick={(e) => {
@@ -586,7 +586,7 @@ const Contacts = () => {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                <ListIcon size={18} className="text-blue-600" />
+                                <ListIcon size={18} className="text-primary-600" />
                                 Create New List
                             </h3>
                             <button
@@ -607,7 +607,7 @@ const Contacts = () => {
                                     value={newListName}
                                     onChange={(e) => setNewListName(e.target.value)}
                                     placeholder="e.g. VIP Customers, Spring Promo"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                     autoFocus
                                     required
                                 />
@@ -624,7 +624,7 @@ const Contacts = () => {
                                 <button
                                     type="submit"
                                     disabled={createLoading || !newListName.trim()}
-                                    className="flex-1 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                    className="flex-1 px-4 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                                 >
                                     {createLoading ? (
                                         <Loader2 size={18} className="animate-spin" />
@@ -647,7 +647,7 @@ const Contacts = () => {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                <UserPlus size={18} className="text-blue-600" />
+                                <UserPlus size={18} className="text-primary-600" />
                                 Add New Contact
                             </h3>
                             <button
@@ -669,7 +669,7 @@ const Contacts = () => {
                                         required
                                         value={newContact.firstName}
                                         onChange={(e) => setNewContact({ ...newContact, firstName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="John"
                                     />
                                 </div>
@@ -681,7 +681,7 @@ const Contacts = () => {
                                         type="text"
                                         value={newContact.lastName}
                                         onChange={(e) => setNewContact({ ...newContact, lastName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="Doe"
                                     />
                                 </div>
@@ -696,7 +696,7 @@ const Contacts = () => {
                                         type="text"
                                         value={newContact.countryCode}
                                         onChange={(e) => setNewContact({ ...newContact, countryCode: e.target.value })}
-                                        className="w-20 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm text-center"
+                                        className="w-20 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm text-center"
                                         placeholder="91"
                                     />
                                     <input
@@ -704,7 +704,7 @@ const Contacts = () => {
                                         required
                                         value={newContact.phoneNumber}
                                         onChange={(e) => setNewContact({ ...newContact, phoneNumber: e.target.value })}
-                                        className="flex-1 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="flex-1 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="555-0123"
                                     />
                                 </div>
@@ -719,7 +719,7 @@ const Contacts = () => {
                                         type="text"
                                         value={newContact.companyName}
                                         onChange={(e) => setNewContact({ ...newContact, companyName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="Acme Inc"
                                     />
                                 </div>
@@ -731,7 +731,7 @@ const Contacts = () => {
                                         type="text"
                                         value={newContact.sheetName}
                                         onChange={(e) => setNewContact({ ...newContact, sheetName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="Sheet1"
                                     />
                                 </div>
@@ -745,7 +745,7 @@ const Contacts = () => {
                                     type="email"
                                     value={newContact.email}
                                     onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
-                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                     placeholder="john@example.com"
                                 />
                             </div>
@@ -771,11 +771,11 @@ const Contacts = () => {
                                                             }
                                                         }}
                                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
-                                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                                            : 'bg-white border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                                                            ? 'bg-primary-50 border-primary-200 text-primary-700'
+                                                            : 'bg-white border-gray-200 hover:border-primary-200 hover:bg-gray-50'
                                                             }`}
                                                     >
-                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
                                                             }`}>
                                                             {isSelected && <Check size={10} className="text-white" />}
                                                         </div>
@@ -791,15 +791,15 @@ const Contacts = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-6 flex items-start gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                            <div className="mb-6 flex items-start gap-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
                                 <input
                                     type="checkbox"
                                     id="optIn"
                                     checked={newContact.optedIn}
                                     onChange={(e) => setNewContact({ ...newContact, optedIn: e.target.checked })}
-                                    className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    className="mt-1 w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
                                 />
-                                <label htmlFor="optIn" className="text-xs text-blue-800 font-medium cursor-pointer">
+                                <label htmlFor="optIn" className="text-xs text-primary-800 font-medium cursor-pointer">
                                     I confirm that this contact has explicitly opted-in to receive messages.
                                 </label>
                             </div>
@@ -815,7 +815,7 @@ const Contacts = () => {
                                 <button
                                     type="submit"
                                     disabled={addContactLoading}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                                 >
                                     {addContactLoading ? (
                                         <Loader2 size={18} className="animate-spin" />
@@ -862,7 +862,7 @@ const Contacts = () => {
                                         required
                                         value={editingContact.firstName}
                                         onChange={(e) => setEditingContact({ ...editingContact, firstName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="John"
                                     />
                                 </div>
@@ -874,7 +874,7 @@ const Contacts = () => {
                                         type="text"
                                         value={editingContact.lastName}
                                         onChange={(e) => setEditingContact({ ...editingContact, lastName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="Doe"
                                     />
                                 </div>
@@ -889,7 +889,7 @@ const Contacts = () => {
                                         type="text"
                                         value={editingContact.countryCode}
                                         onChange={(e) => setEditingContact({ ...editingContact, countryCode: e.target.value })}
-                                        className="w-20 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm text-center"
+                                        className="w-20 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm text-center"
                                         placeholder="91"
                                     />
                                     <input
@@ -897,7 +897,7 @@ const Contacts = () => {
                                         required
                                         value={editingContact.phoneNumber}
                                         onChange={(e) => setEditingContact({ ...editingContact, phoneNumber: e.target.value })}
-                                        className="flex-1 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="flex-1 px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="555-0123"
                                     />
                                 </div>
@@ -912,7 +912,7 @@ const Contacts = () => {
                                         type="text"
                                         value={editingContact.companyName}
                                         onChange={(e) => setEditingContact({ ...editingContact, companyName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="Acme Inc"
                                     />
                                 </div>
@@ -924,7 +924,7 @@ const Contacts = () => {
                                         type="text"
                                         value={editingContact.sheetName}
                                         onChange={(e) => setEditingContact({ ...editingContact, sheetName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                         placeholder="Sheet1"
                                     />
                                 </div>
@@ -938,20 +938,20 @@ const Contacts = () => {
                                     type="email"
                                     value={editingContact.email}
                                     onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
-                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                     placeholder="john@example.com"
                                 />
                             </div>
 
-                            <div className="mb-6 flex items-start gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                            <div className="mb-6 flex items-start gap-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
                                 <input
                                     type="checkbox"
                                     id="editOptIn"
                                     checked={editingContact.optedIn}
                                     onChange={(e) => setEditingContact({ ...editingContact, optedIn: e.target.checked })}
-                                    className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    className="mt-1 w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
                                 />
-                                <label htmlFor="editOptIn" className="text-xs text-blue-800 font-medium cursor-pointer">
+                                <label htmlFor="editOptIn" className="text-xs text-primary-800 font-medium cursor-pointer">
                                     This contact has opted-in to receive messages.
                                 </label>
                             </div>
@@ -993,7 +993,7 @@ const Contacts = () => {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                <Upload size={18} className="text-blue-600" />
+                                <Upload size={18} className="text-primary-600" />
                                 Upload Contacts CSV
                             </h3>
                             <button
@@ -1009,13 +1009,13 @@ const Contacts = () => {
 
                         <div className="p-6">
                             {/* Step 1: Download Sample */}
-                            <div className="mb-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                            <div className="mb-6 bg-primary-50/50 p-4 rounded-xl border border-primary-100">
                                 <p className="text-sm text-gray-600 mb-3">
                                     Please ensure your CSV file is formatted correctly. Download the sample file to modify.
                                 </p>
                                 <button
                                     onClick={handleDownloadSample}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-colors text-sm shadow-sm"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-primary-200 text-primary-600 font-bold rounded-lg hover:bg-primary-50 transition-colors text-sm shadow-sm"
                                 >
                                     <Download size={16} />
                                     Download Sample CSV
@@ -1036,10 +1036,10 @@ const Contacts = () => {
                                 {!selectedFile ? (
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
+                                        className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all group"
                                     >
                                         <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                            <FileText className="text-gray-400 group-hover:text-blue-500" size={24} />
+                                            <FileText className="text-gray-400 group-hover:text-primary-500" size={24} />
                                         </div>
                                         <p className="text-sm font-bold text-gray-700">Click to select CSV file</p>
                                         <p className="text-xs text-gray-400 mt-1">or drag and drop here</p>
@@ -1057,7 +1057,7 @@ const Contacts = () => {
                                         </div>
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="text-xs font-bold text-blue-600 hover:underline px-2"
+                                            className="text-xs font-bold text-primary-600 hover:underline px-2"
                                         >
                                             Change
                                         </button>
@@ -1093,11 +1093,11 @@ const Contacts = () => {
                                                             }
                                                         }}
                                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
-                                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                                            : 'bg-white border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                                                            ? 'bg-primary-50 border-primary-200 text-primary-700'
+                                                            : 'bg-white border-gray-200 hover:border-primary-200 hover:bg-gray-50'
                                                             }`}
                                                     >
-                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
                                                             }`}>
                                                             {isSelected && <Check size={10} className="text-white" />}
                                                         </div>
@@ -1116,12 +1116,12 @@ const Contacts = () => {
                                                 value={newListInModalName}
                                                 onChange={(e) => setNewListInModalName(e.target.value)}
                                                 placeholder="New List Name"
-                                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs focus:border-blue-500 focus:outline-none"
+                                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs focus:border-primary-500 focus:outline-none"
                                                 autoFocus
                                             />
                                             <button
                                                 onClick={handleCreateListInModal}
-                                                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                                                className="px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700"
                                             >
                                                 Add
                                             </button>
@@ -1135,7 +1135,7 @@ const Contacts = () => {
                                     ) : (
                                         <button
                                             onClick={() => setIsCreatingListInModal(true)}
-                                            className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:bg-blue-50 px-2 py-1.5 rounded-lg transition-colors"
+                                            className="text-xs font-bold text-primary-600 flex items-center gap-1 hover:bg-primary-50 px-2 py-1.5 rounded-lg transition-colors"
                                         >
                                             <FolderPlus size={14} />
                                             + Create New List
@@ -1158,7 +1158,7 @@ const Contacts = () => {
                                 <button
                                     onClick={handleUploadConfirm}
                                     disabled={!selectedFile || uploadLoading}
-                                    className="flex-1 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                    className="flex-1 px-4 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                                 >
                                     {uploadLoading ? (
                                         <Loader2 size={18} className="animate-spin" />

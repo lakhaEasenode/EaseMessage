@@ -1,13 +1,17 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import NewMessageModal from '../components/inbox/NewMessageModal';
 import ContactDetails from '../components/inbox/ContactDetails';
 import ConversationList from '../components/inbox/ConversationList';
 import ChatWindow from '../components/inbox/ChatWindow';
 import AuthContext from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
+import { useToast } from '../components/Toast';
 import axios from 'axios';
 
 const Inbox = () => {
     const { token } = useContext(AuthContext);
+    const { isConnected, on } = useSocket();
+    const toast = useToast();
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -15,8 +19,17 @@ const Inbox = () => {
     const [loading, setLoading] = useState(true);
     const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
     const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat' | 'details'
+    const [searchQuery, setSearchQuery] = useState('');
+    const [drafts, setDrafts] = useState({}); // { contactId: 'draft text' }
+    const [messagePagination, setMessagePagination] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
+
+    // Keep a ref to activeConversation to avoid stale closures in socket handlers
+    const activeConversationRef = useRef(activeConversation);
+    useEffect(() => {
+        activeConversationRef.current = activeConversation;
+    }, [activeConversation]);
 
     // Fetch Conversations
     const fetchConversations = async () => {
@@ -31,38 +44,100 @@ const Inbox = () => {
         }
     };
 
-    // Fetch Messages for active conversation
-    const fetchMessages = async (contactId) => {
+    // Fetch Messages for active conversation (paginated — loads latest page)
+    const fetchMessages = async (contactId, page = 1) => {
         try {
             const config = { headers: { 'x-auth-token': token } };
-            const res = await axios.get(`${API_URL}/messages/${contactId}`, config);
-            setMessages(res.data);
+            const res = await axios.get(`${API_URL}/messages/${contactId}?page=${page}&limit=50`, config);
+            const { messages: msgs, pagination } = res.data;
+            if (page === 1) {
+                setMessages(msgs);
+            } else {
+                // Prepend older messages when loading more history
+                setMessages(prev => [...msgs, ...prev]);
+            }
+            setMessagePagination(pagination);
         } catch (err) {
             console.error("Error fetching messages:", err);
         }
     };
 
+    const loadMoreMessages = () => {
+        if (activeConversation && messagePagination?.hasMore) {
+            fetchMessages(activeConversation.contact._id, messagePagination.page + 1);
+        }
+    };
+
+    // Adaptive polling: slower when socket is connected, faster when disconnected
     useEffect(() => {
         if (token) {
             fetchConversations();
-            // Poll for new conversations every 10 seconds
-            const interval = setInterval(fetchConversations, 10000);
+            const interval = setInterval(fetchConversations, isConnected ? 30000 : 10000);
             return () => clearInterval(interval);
         }
-    }, [token]);
+    }, [token, isConnected]);
 
     useEffect(() => {
         if (activeConversation && token) {
             fetchMessages(activeConversation.contact._id);
-            // Poll for new messages every 3 seconds
-            const interval = setInterval(() => fetchMessages(activeConversation.contact._id), 3000);
+            const interval = setInterval(
+                () => fetchMessages(activeConversation.contact._id),
+                isConnected ? 30000 : 3000
+            );
             return () => clearInterval(interval);
         }
-    }, [activeConversation, token]);
+    }, [activeConversation, token, isConnected]);
+
+    // Socket event listeners
+    useEffect(() => {
+        if (!isConnected) return;
+
+        const unsubs = [];
+
+        // Inbound message
+        unsubs.push(on('message:new', ({ message, contactId }) => {
+            const active = activeConversationRef.current;
+            if (active && active.contact._id === contactId) {
+                setMessages(prev => prev.some(m => m._id === message._id) ? prev : [...prev, message]);
+            }
+            fetchConversations();
+        }));
+
+        // Outbound message from another tab
+        unsubs.push(on('message:sent', ({ message, contactId }) => {
+            const active = activeConversationRef.current;
+            if (active && active.contact._id === contactId) {
+                setMessages(prev => prev.some(m => m._id === message._id) ? prev : [...prev, message]);
+            }
+            fetchConversations();
+        }));
+
+        // Delivery status update
+        unsubs.push(on('message:status', ({ messageId, contactId, status }) => {
+            const active = activeConversationRef.current;
+            if (active && active.contact._id === contactId) {
+                setMessages(prev => prev.map(m =>
+                    m._id === messageId ? { ...m, status } : m
+                ));
+            }
+        }));
+
+        // Conversation list changed
+        unsubs.push(on('conversation:updated', () => {
+            fetchConversations();
+        }));
+
+        return () => unsubs.forEach(unsub => unsub());
+    }, [isConnected, on]);
 
     const handleSelectConversation = (conv) => {
         setActiveConversation(conv);
         setMobileView('chat');
+        setMessagePagination(null);
+    };
+
+    const handleDraftChange = (contactId, text) => {
+        setDrafts(prev => ({ ...prev, [contactId]: text }));
     };
 
     const handleSendMessage = async (type, content, templateData) => {
@@ -88,7 +163,7 @@ const Inbox = () => {
 
         } catch (err) {
             console.error("Error sending message:", err);
-            alert(err.response?.data?.msg || "Failed to send message");
+            toast.error(err.response?.data?.msg || "Failed to send message");
         }
     };
 
@@ -141,7 +216,7 @@ const Inbox = () => {
 
         } catch (err) {
             console.error("Error starting conversation:", err);
-            alert(err.response?.data?.msg || "Failed to start conversation");
+            toast.error(err.response?.data?.msg || "Failed to start conversation");
         }
     };
 
@@ -171,15 +246,24 @@ const Inbox = () => {
 
         } catch (err) {
             console.error("Failed to update status", err);
-            alert("Failed to update status: " + (err.response?.data?.msg || err.message));
+            toast.error("Failed to update status: " + (err.response?.data?.msg || err.message));
         }
     };
 
     const filteredConversations = conversations.filter(c => {
-        if (filter === 'all') return true;
-        // Default to 'open' if undefined
-        const status = c.contact.conversationStatus || 'open';
-        return status === filter;
+        // Status filter
+        if (filter !== 'all') {
+            const status = c.contact.conversationStatus || 'open';
+            if (status !== filter) return false;
+        }
+        // Search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            const name = `${c.contact.firstName} ${c.contact.lastName || ''}`.toLowerCase();
+            const phone = c.contact.phoneNumber || '';
+            if (!name.includes(query) && !phone.includes(query)) return false;
+        }
+        return true;
     });
 
     if (loading) {
@@ -199,6 +283,8 @@ const Inbox = () => {
                     filter={filter}
                     setFilter={setFilter}
                     onNewMessage={() => setIsNewMessageOpen(true)}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
                 />
             </div>
 
@@ -211,6 +297,10 @@ const Inbox = () => {
                     onStatusChange={handleStatusChange}
                     onBack={() => setMobileView('list')}
                     onDetails={() => setMobileView('details')}
+                    draft={activeConversation ? (drafts[activeConversation.contact._id] || '') : ''}
+                    onDraftChange={handleDraftChange}
+                    hasMoreMessages={messagePagination?.hasMore || false}
+                    onLoadMore={loadMoreMessages}
                 />
             </div>
 

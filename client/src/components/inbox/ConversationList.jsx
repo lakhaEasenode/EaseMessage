@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Search, Filter, Plus, CheckCircle, Clock, AlertCircle, ChevronDown, Layers } from 'lucide-react';
+import { Search, Plus, CheckCircle, Clock, AlertCircle, ChevronDown, Layers } from 'lucide-react';
 
-const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter, onNewMessage }) => {
+const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter, onNewMessage, searchQuery, onSearchChange }) => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     // Helper to format time
@@ -28,13 +28,13 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                 return { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100', border: 'border-yellow-200' };
             case 'open':
             default:
-                return { icon: AlertCircle, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200' };
+                return { icon: AlertCircle, color: 'text-primary-500', bg: 'bg-primary-100', border: 'border-primary-200' };
         }
     };
 
     const filterOptions = [
         { id: 'all', label: 'All Messages', icon: Layers, color: 'text-gray-600' },
-        { id: 'open', label: 'Open', icon: AlertCircle, color: 'text-blue-500' },
+        { id: 'open', label: 'Open', icon: AlertCircle, color: 'text-primary-500' },
         { id: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-600' },
         { id: 'resolved', label: 'Resolved', icon: CheckCircle, color: 'text-green-500' }
     ];
@@ -50,7 +50,7 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     <h2 className="text-xl font-bold text-gray-900 tracking-tight">Inbox</h2>
                     <button
                         onClick={onNewMessage}
-                        className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md active:scale-95 group"
+                        className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-md active:scale-95 group"
                         title="New Message"
                     >
                         <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -61,6 +61,8 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     <input
                         type="text"
                         placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => onSearchChange(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 bg-gray-100 border-none rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 transition-all text-xs font-medium placeholder:text-gray-400"
                     />
                 </div>
@@ -95,14 +97,14 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                                                 setFilter(opt.id);
                                                 setIsFilterOpen(false);
                                             }}
-                                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50'
+                                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-primary-50/50' : 'hover:bg-gray-50'
                                                 }`}
                                         >
                                             <Icon size={14} className={opt.color} />
                                             <span className={`text-xs ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-600'}`}>
                                                 {opt.label}
                                             </span>
-                                            {isSelected && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                                            {isSelected && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
                                         </button>
                                     );
                                 })}
@@ -119,34 +121,37 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     const statusConfig = getStatusConfig(status);
                     const StatusIcon = statusConfig.icon;
                     const isActive = activeId === conv.contact._id;
+                    const unread = conv.unreadCount || 0;
 
                     return (
                         <div
                             key={conv.contact._id}
                             onClick={() => onSelect(conv)}
                             className={`p-3 border-b border-gray-50 cursor-pointer transition-all duration-200 relative ${isActive
-                                ? 'bg-blue-50/60'
+                                ? 'bg-primary-50/60'
                                 : 'hover:bg-gray-50'
                                 }`}
                         >
-                            {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-600 rounded-r-full" />}
+                            {isActive && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary-600 rounded-r-full" />}
 
                             <div className="flex justify-between items-start mb-0.5 relative">
                                 <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                                    <h3 className="font-bold text-gray-900 text-sm truncate">
+                                    <h3 className={`text-sm truncate ${unread > 0 ? 'font-extrabold text-gray-900' : 'font-bold text-gray-900'}`}>
                                         {conv.contact.firstName} {conv.contact.lastName}
                                     </h3>
                                     <StatusIcon size={12} className={statusConfig.color} />
                                 </div>
-                                {conv.lastMessage && (
-                                    <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap pt-0.5">
-                                        {formatTime(conv.lastMessage.timestamp)}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {conv.lastMessage && (
+                                        <span className={`text-[10px] whitespace-nowrap pt-0.5 ${unread > 0 ? 'text-green-600 font-bold' : 'text-gray-400 font-medium'}`}>
+                                            {formatTime(conv.lastMessage.timestamp)}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex justify-between items-end">
-                                <p className={`text-xs truncate max-w-[200px] leading-relaxed ${isActive ? 'text-gray-700' : 'text-gray-500'}`}>
+                                <p className={`text-xs truncate max-w-[180px] leading-relaxed ${unread > 0 ? 'font-semibold text-gray-800' : (isActive ? 'text-gray-700' : 'text-gray-500')}`}>
                                     {conv.lastMessage
                                         ? (conv.lastMessage.type === 'template' ?
                                             <span className="flex items-center gap-1.5">
@@ -157,6 +162,11 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                                         : <span className="italic opacity-80">Start a conversation</span>
                                     }
                                 </p>
+                                {unread > 0 && (
+                                    <span className="ml-2 min-w-[20px] h-5 flex items-center justify-center bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 flex-shrink-0">
+                                        {unread > 99 ? '99+' : unread}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     );

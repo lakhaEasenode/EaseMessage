@@ -41,7 +41,7 @@ const ContactHeader = ({ refreshKey }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
                 {/* Total Contacts Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3 transition-all hover:shadow-md">
-                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                    <div className="p-2 bg-primary-50 rounded-lg text-primary-600">
                         <Users size={20} />
                     </div>
                     <div className="flex-1">
