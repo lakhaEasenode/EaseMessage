@@ -10,7 +10,7 @@ class CampaignService {
      * Create a new campaign with validation
      */
     async createCampaign(userId, campaignData) {
-        const { name, phoneNumberId, templateId, listId, scheduledAt, sendingInterval, templateVariableMapping } = campaignData;
+        const { name, phoneNumberId, templateId, listId, scheduledAt, sendingInterval, templateVariableMapping, forceDraft } = campaignData;
 
         // 1. Validate Phone Number
         const phone = await WhatsAppPhoneNumber.findOne({ _id: phoneNumberId, userId: userId });
@@ -33,16 +33,24 @@ class CampaignService {
             throw new Error('Invalid audience list selected.');
         }
 
-        // 4. Create Campaign
+        // 4. Validate sending interval
+        const minInterval = parseInt(process.env.CAMPAIGN_MIN_INTERVAL || '10');
+        const maxInterval = parseInt(process.env.CAMPAIGN_MAX_INTERVAL || '60');
+        const interval = sendingInterval || 0;
+        if (interval > 0 && (interval < minInterval || interval > maxInterval)) {
+            throw new Error(`Sending interval must be between ${minInterval} and ${maxInterval} seconds (or 0 for no delay).`);
+        }
+
+        // 5. Create Campaign
         const newCampaign = new Campaign({
             user: userId,
             name,
             phoneNumberId,
             templateId,
             listId,
-            status: scheduledAt ? 'scheduled' : 'draft',
+            status: forceDraft ? 'draft' : (scheduledAt ? 'scheduled' : 'draft'),
             scheduledAt: scheduledAt || null,
-            sendingInterval: sendingInterval || 0,
+            sendingInterval: interval,
             templateVariableMapping: templateVariableMapping || []
         });
 
