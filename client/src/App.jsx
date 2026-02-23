@@ -13,6 +13,7 @@ import { ToastProvider } from './components/Toast';
 
 // Placeholder Pages
 import Campaigns from './pages/Campaigns';
+import CampaignDetail from './components/campaigns/CampaignDetail';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 
@@ -37,6 +38,7 @@ function App() {
           <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/campaigns/:id" element={<CampaignDetail />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/whatsapp-accounts" element={<WhatsAppAccounts />} />
             <Route path="/templates" element={<Templates />} />
