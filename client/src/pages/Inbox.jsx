@@ -152,13 +152,10 @@ const Inbox = () => {
                 templateData
             };
 
-            const res = await axios.post(`${API_URL}/messages/send`, payload, config);
+            await axios.post(`${API_URL}/messages/send`, payload, config);
 
-            // Optimistically update or just re-fetch
-            const newMsg = res.data;
-            setMessages(prev => [...prev, newMsg]);
-
-            // Update conversation list sort order if needed (re-fetch does this)
+            // Socket 'message:sent' will add the message (with dedup).
+            // If socket is disconnected, the 3s poll will pick it up.
             fetchConversations();
 
         } catch (err) {

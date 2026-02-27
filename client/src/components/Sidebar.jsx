@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Megaphone, MessageSquare, Settings, LogOut, MessageCircle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Megaphone, MessageSquare, Settings, MessageCircle, FileText, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -22,14 +22,24 @@ const Sidebar = ({ mobile, onClose }) => {
         >
             <div>
                 {/* Logo Section */}
-                <div className={`flex items-center gap-2 mb-8 px-2 ${collapsed ? 'justify-center' : ''}`}>
-                    <div className="min-w-8 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">
-                        E
+                <div className={`flex items-center mb-8 px-2 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+                    <div className="flex items-center gap-2">
+                        <div className="min-w-8 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">
+                            E
+                        </div>
+                        {!collapsed && (
+                            <span className="text-xl font-bold text-gray-800 whitespace-nowrap overflow-hidden animate-in fade-in duration-200">
+                                EaseMessage
+                            </span>
+                        )}
                     </div>
-                    {!collapsed && (
-                        <span className="text-xl font-bold text-gray-800 whitespace-nowrap overflow-hidden animate-in fade-in duration-200">
-                            EaseMessage
-                        </span>
+                    {mobile && (
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
                     )}
                 </div>
 

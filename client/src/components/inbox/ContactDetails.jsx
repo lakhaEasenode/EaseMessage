@@ -1,4 +1,4 @@
-import { User, Phone, Mail, MapPin, Calendar, Tag, Clock, ChevronLeft } from 'lucide-react';
+import { User, Phone, Mail, MapPin, Calendar, List, Clock, ChevronLeft } from 'lucide-react';
 
 const ContactDetails = ({ contact, onBack }) => {
     if (!contact) {
@@ -61,21 +61,21 @@ const ContactDetails = ({ contact, onBack }) => {
                     </div>
                 </div>
 
-                {/* Tags */}
+                {/* Lists */}
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <Tag size={12} /> Tags
+                        <List size={12} /> Lists
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {contact.tags && contact.tags.length > 0 ? (
-                            contact.tags.map((tag, index) => (
-                                <span key={index} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white text-gray-700 text-xs font-semibold border border-gray-200 shadow-sm">
+                        {contact.lists && contact.lists.length > 0 ? (
+                            contact.lists.map((list) => (
+                                <span key={list._id || list} className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white text-gray-700 text-xs font-semibold border border-gray-200 shadow-sm">
                                     <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>
-                                    {tag}
+                                    {list.name || list}
                                 </span>
                             ))
                         ) : (
-                            <span className="text-xs text-gray-400 italic">No tags</span>
+                            <span className="text-xs text-gray-400 italic">Not in any list</span>
                         )}
                     </div>
                 </div>

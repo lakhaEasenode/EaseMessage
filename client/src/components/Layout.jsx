@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { X } from 'lucide-react';
 
 const Layout = () => {
     const location = useLocation();
@@ -26,15 +25,7 @@ const Layout = () => {
                     ></div>
 
                     {/* Sidebar Drawer */}
-                    <div className="relative flex-1 w-full max-w-[18rem] bg-white h-full shadow-2xl animate-in slide-in-from-left duration-200">
-                        <div className="absolute top-2 right-2 z-50">
-                            <button
-                                onClick={() => setSidebarOpen(false)}
-                                className="p-2 bg-white/10 text-gray-500 hover:text-gray-900 rounded-lg"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
+                    <div className="flex-1 w-full max-w-[18rem] bg-white h-full shadow-2xl animate-in slide-in-from-left duration-200">
                         <Sidebar mobile onClose={() => setSidebarOpen(false)} />
                     </div>
                 </div>

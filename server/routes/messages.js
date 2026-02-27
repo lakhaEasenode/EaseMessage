@@ -62,7 +62,7 @@ router.get('/conversations', auth, async (req, res) => {
             _id: { $in: contactIds },
             userId: req.user.id,
             isDeleted: false
-        });
+        }).populate('lists', 'name');
 
         // 5. Combine contact info with last message and unread count
         const conversations = contacts.map(contact => {
