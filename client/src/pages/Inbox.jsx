@@ -8,6 +8,30 @@ import { useSocket } from '../context/SocketContext';
 import { useToast } from '../components/Toast';
 import axios from 'axios';
 
+const playNotificationTone = () => {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+
+        // Two-note chime: G5 → B5
+        [[784, 0, 0.12], [988, 0.13, 0.12]].forEach(([freq, start, duration]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + start);
+            gain.gain.setValueAtTime(0, now + start);
+            gain.gain.linearRampToValueAtTime(0.3, now + start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
+            osc.start(now + start);
+            osc.stop(now + start + duration);
+        });
+    } catch (_) {
+        // AudioContext not available
+    }
+};
+
 const Inbox = () => {
     const { token } = useContext(AuthContext);
     const { isConnected, on } = useSocket();
@@ -100,6 +124,7 @@ const Inbox = () => {
             if (active && active.contact._id === contactId) {
                 setMessages(prev => prev.some(m => m._id === message._id) ? prev : [...prev, message]);
             }
+            playNotificationTone();
             fetchConversations();
         }));
 
