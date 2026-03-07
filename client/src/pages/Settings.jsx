@@ -2,9 +2,11 @@ import { useState, useContext, useEffect } from 'react';
 import { User, Lock, Building, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import AuthContext from '../context/AuthContext';
+import { usePageHeader } from '../context/PageHeaderContext';
 
 const Settings = () => {
     const { user, token, loadUser } = useContext(AuthContext);
+    const { setHeader } = usePageHeader();
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: '' }
 
@@ -21,6 +23,11 @@ const Settings = () => {
     });
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
+
+    useEffect(() => {
+        setHeader({ title: 'Settings', subtitle: null, actions: null });
+        return () => setHeader({ title: '', subtitle: null, actions: null });
+    }, []);
 
     useEffect(() => {
         if (user) {
@@ -76,16 +83,14 @@ const Settings = () => {
 
     return (
         <div className="max-w-6xl mx-auto h-full flex flex-col">
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">Settings</h1>
-
             {msg && (
-                <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                <div className={`mb-2 p-4 rounded-xl flex items-center gap-3 ${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                     {msg.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
                     {msg.text}
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {/* Profile Section */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-fit">
                     <div className="p-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">

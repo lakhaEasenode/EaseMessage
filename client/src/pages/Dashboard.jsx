@@ -1,14 +1,16 @@
 import { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { MessageSquare, Send, Users, CheckCircle, Loader } from 'lucide-react';
+import { MessageSquare, Send, Users, CheckCircle, Loader, Plus } from 'lucide-react';
 import KPICard from '../components/KPICard';
 import DashboardChart from '../components/DashboardChart';
 import AuthContext from '../context/AuthContext';
+import { usePageHeader } from '../context/PageHeaderContext';
 
 const Dashboard = () => {
     const { token } = useContext(AuthContext);
     const navigate = useNavigate();
+    const { setHeader } = usePageHeader();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({
         kpis: {
@@ -48,34 +50,45 @@ const Dashboard = () => {
         { title: 'Open Rate', value: `${data.kpis.openRate}%`, change: 0, icon: CheckCircle, color: 'bg-green-500' },
     ];
 
+    useEffect(() => {
+        setHeader({
+            title: 'Dashboard',
+            subtitle: null,
+            actions: (
+                <button
+                    onClick={() => navigate('/campaigns')}
+                    className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors"
+                >
+                    <Plus size={15} />
+                    Create Campaign
+                </button>
+            )
+        });
+        return () => setHeader({ title: '', subtitle: null, actions: null });
+    }, []);
+
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary-600" /></div>;
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
-                <button onClick={() => navigate('/campaigns')} className="bg-primary-600 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg shadow-primary-200">
-                    Create Campaign
-                </button>
-            </div>
+        <div className="space-y-2">
 
             {/* KPI Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                 {kpis.map((kpi, index) => (
                     <KPICard key={index} {...kpi} />
                 ))}
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
                 <div className="lg:col-span-2">
                     <DashboardChart data={data.chartData} />
                 </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Recent Campaigns</h3>
-                    <div className="space-y-4">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-base font-semibold text-gray-800 mb-3">Recent Campaigns</h3>
+                    <div className="space-y-2">
                         {data.recentCampaigns.length === 0 ? (
                             <p className="text-gray-500 text-sm">No campaigns yet.</p>
                         ) : (

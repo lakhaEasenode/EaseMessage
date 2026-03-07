@@ -2,9 +2,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const DashboardChart = ({ data }) => {
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Message Trends</h3>
-            <div className="h-80">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-800 mb-3">Message Trends</h3>
+            <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />

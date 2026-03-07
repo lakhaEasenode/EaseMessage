@@ -1,14 +1,16 @@
 import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Rocket, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CampaignList from '../components/campaigns/CampaignList';
 import CreateCampaign from '../components/campaigns/CreateCampaign';
+import { usePageHeader } from '../context/PageHeaderContext';
 
 const Campaigns = () => {
     const { token } = useContext(AuthContext);
     const navigate = useNavigate();
+    const { setHeader } = usePageHeader();
     const [view, setView] = useState('list');
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -33,6 +35,23 @@ const Campaigns = () => {
     useEffect(() => {
         if (token && view === 'list') fetchCampaigns();
     }, [token, view]);
+
+    useEffect(() => {
+        setHeader({
+            title: 'Campaigns',
+            subtitle: 'Manage and schedule your marketing messages',
+            actions: view === 'list' ? (
+                <button
+                    onClick={() => setView('create')}
+                    className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                >
+                    <Plus size={15} />
+                    New Campaign
+                </button>
+            ) : null
+        });
+        return () => setHeader({ title: '', subtitle: null, actions: null });
+    }, [view]);
 
     const handleDelete = async (campaignId) => {
         if (!confirm('Are you sure you want to delete this campaign?')) return;
@@ -90,24 +109,7 @@ const Campaigns = () => {
             )}
 
             {view === 'list' && (
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                                <Rocket className="text-primary-600" size={28} />
-                                Campaigns
-                            </h1>
-                            <p className="text-gray-500 mt-1">Manage and schedule your marketing messages</p>
-                        </div>
-                        <button
-                            onClick={() => setView('create')}
-                            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm font-bold"
-                        >
-                            <Plus size={20} />
-                            Create Campaign
-                        </button>
-                    </div>
-
+                <div className="space-y-2">
                     <CampaignList
                         campaigns={campaigns}
                         loading={loading}

@@ -2,10 +2,12 @@
 import { useState, useContext, useRef, useEffect } from 'react';
 import { Bell, User, LogOut, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
+import { usePageHeader } from '../context/PageHeaderContext';
 import { useNavigate } from 'react-router-dom';
 
 const Header = ({ onMenuClick }) => {
     const { user, logout } = useContext(AuthContext);
+    const { header } = usePageHeader();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
@@ -30,19 +32,38 @@ const Header = ({ onMenuClick }) => {
     }, []);
 
     return (
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-10 transition-all duration-300">
-            {/* Left side */}
-            <div className="flex items-center gap-3">
+        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-10 transition-all duration-300">
+            {/* Left side — mobile menu + page title */}
+            <div className="flex items-center gap-3 min-w-0">
                 <button
                     onClick={onMenuClick}
-                    className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg md:hidden"
+                    className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg md:hidden flex-shrink-0"
                 >
                     <Menu size={24} />
                 </button>
+                {header.title && (
+                    <div className="min-w-0">
+                        <h1 className="text-base font-semibold text-gray-800 leading-tight truncate">
+                            {header.title}
+                        </h1>
+                        {header.subtitle && (
+                            <p className="text-xs text-gray-400 leading-tight truncate hidden sm:block">
+                                {header.subtitle}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Right side - Actions & Profile */}
-            <div className="flex items-center gap-4">
+            {/* Right side — page actions + profile */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Per-page action buttons */}
+                {header.actions && (
+                    <>
+                        <div className="flex items-center gap-2">{header.actions}</div>
+                        <div className="h-5 w-px bg-gray-200"></div>
+                    </>
+                )}
                 {/* Notification Icon */}
                 <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors relative">
                     <Bell size={20} />

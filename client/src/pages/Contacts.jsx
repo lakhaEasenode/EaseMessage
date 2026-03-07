@@ -3,9 +3,11 @@ import axios from 'axios';
 import { Users, List as ListIcon, Loader2, Plus, Eye, Edit, Trash2, X, ChevronDown, Upload, UserPlus, Download, FileText, FolderPlus, Check } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import ContactHeader from '../components/ContactHeader';
+import { usePageHeader } from '../context/PageHeaderContext';
 
 const Contacts = () => {
     const { token } = useContext(AuthContext);
+    const { setHeader } = usePageHeader();
     const [view, setView] = useState('contacts'); // 'contacts' | 'lists'
     const [contacts, setContacts] = useState([]);
     const [lists, setLists] = useState([]);
@@ -91,6 +93,11 @@ const Contacts = () => {
             fetchData();
         }
     }, [token, view, refreshKey, selectedListFilter]);
+
+    useEffect(() => {
+        setHeader({ title: 'Contacts', subtitle: null, actions: null });
+        return () => setHeader({ title: '', subtitle: null, actions: null });
+    }, []);
 
     const handleCreateList = async (e) => {
         e.preventDefault();
@@ -294,12 +301,12 @@ const Contacts = () => {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto">
             {/* Modular Header Component */}
             <ContactHeader refreshKey={refreshKey} />
 
             {/* View Toggle & Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
                 <div className="flex bg-gray-100 p-1 rounded-xl">
                     <button
                         onClick={() => setView('contacts')}

@@ -1,10 +1,13 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, Search, Filter, FileText, Copy, AlertCircle, RefreshCw, X, ChevronDown, Check } from 'lucide-react'; import AuthContext from '../context/AuthContext';
+import { Loader2, Plus, Search, Filter, FileText, Copy, AlertCircle, RefreshCw, X, ChevronDown, Check } from 'lucide-react';
+import AuthContext from '../context/AuthContext';
 import TemplateForm from '../components/TemplateForm';
+import { usePageHeader } from '../context/PageHeaderContext';
 
 const Templates = () => {
     const { token } = useContext(AuthContext);
+    const { setHeader } = usePageHeader();
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -102,6 +105,33 @@ const Templates = () => {
         }
     };
 
+    useEffect(() => {
+        setHeader({
+            title: 'Templates',
+            subtitle: 'Manage WhatsApp message templates',
+            actions: (
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleSync}
+                        disabled={syncing}
+                        className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+                        {syncing ? 'Syncing…' : 'Sync'}
+                    </button>
+                    <button
+                        onClick={() => { setEditingTemplate(null); setIsFormOpen(true); }}
+                        className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <Plus size={14} />
+                        New Template
+                    </button>
+                </div>
+            )
+        });
+        return () => setHeader({ title: '', subtitle: null, actions: null });
+    }, [syncing]);
+
     // Filter Logic
     const toggleWabaFilter = (wabaId) => {
         setFilterWaba(prev => {
@@ -135,42 +165,15 @@ const Templates = () => {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Templates</h1>
-                    <p className="text-gray-500 text-sm mt-1">Manage WhatsApp message templates</p>
-                    {syncMessage && (
-                        <div className="mt-2 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-lg inline-block">
-                            ✓ {syncMessage}
-                        </div>
-                    )}
+        <div className="max-w-7xl mx-auto">
+            {syncMessage && (
+                <div className="mb-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg inline-block">
+                    ✓ {syncMessage}
                 </div>
-                <div className="flex flex-wrap gap-2 sm:gap-3 shrink-0">
-                    <button
-                        onClick={handleSync}
-                        disabled={syncing}
-                        className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95 text-sm"
-                    >
-                        <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                        {syncing ? 'Syncing...' : 'Refresh'}
-                    </button>
-                    <button
-                        onClick={() => {
-                            setEditingTemplate(null);
-                            setIsFormOpen(true);
-                        }}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm active:scale-95 text-sm"
-                    >
-                        <Plus size={16} />
-                        Create Template
-                    </button>
-                </div>
-            </div>
+            )}
 
             {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
                 <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input

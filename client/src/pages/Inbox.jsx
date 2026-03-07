@@ -6,6 +6,7 @@ import ChatWindow from '../components/inbox/ChatWindow';
 import AuthContext from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../components/Toast';
+import { usePageHeader } from '../context/PageHeaderContext';
 import axios from 'axios';
 
 const playNotificationTone = () => {
@@ -36,6 +37,7 @@ const Inbox = () => {
     const { token } = useContext(AuthContext);
     const { isConnected, on } = useSocket();
     const toast = useToast();
+    const { setHeader } = usePageHeader();
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -48,6 +50,11 @@ const Inbox = () => {
     const [messagePagination, setMessagePagination] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
+
+    useEffect(() => {
+        setHeader({ title: 'Inbox', subtitle: null, actions: null });
+        return () => setHeader({ title: '', subtitle: null, actions: null });
+    }, []);
 
     // Keep a ref to activeConversation to avoid stale closures in socket handlers
     const activeConversationRef = useRef(activeConversation);

@@ -33,12 +33,8 @@ const ContactHeader = ({ refreshKey }) => {
     }, [token, refreshKey]);
 
     return (
-        <div className="mb-8">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">Contacts Overview</h1>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+        <div className="mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-2xl">
                 {/* Total Contacts Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3 transition-all hover:shadow-md">
                     <div className="p-2 bg-primary-50 rounded-lg text-primary-600">

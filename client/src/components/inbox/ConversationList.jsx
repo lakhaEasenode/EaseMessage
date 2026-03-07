@@ -1,8 +1,15 @@
-import { useState } from 'react';
-import { Search, Plus, CheckCircle, Clock, AlertCircle, ChevronDown, Layers } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, Plus, CheckCircle, Clock, AlertCircle, Layers, SlidersHorizontal } from 'lucide-react';
 
 const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter, onNewMessage, searchQuery, onSearchChange }) => {
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [filterOpen, setFilterOpen] = useState(false);
+    const filterRef = useRef(null);
+
+    useEffect(() => {
+        const handler = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     // Helper to format time
     const formatTime = (dateString) => {
@@ -39,78 +46,59 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
         { id: 'resolved', label: 'Resolved', icon: CheckCircle, color: 'text-green-500' }
     ];
 
-    const currentFilter = filterOptions.find(f => f.id === filter) || filterOptions[0];
-    const FilterIcon = currentFilter.icon;
-
     return (
         <div className="w-72 border-r border-gray-200 h-full flex flex-col bg-white">
             {/* Header / Search */}
             <div className="p-3 border-b border-gray-100 bg-white z-10 sticky top-0">
-                <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">Inbox</h2>
-                    <button
-                        onClick={onNewMessage}
-                        className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-md active:scale-95 group"
-                        title="New Message"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
-                    </button>
-                </div>
-                <div className="relative group mb-3">
+                <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-gray-600 transition-colors" size={14} />
                     <input
                         type="text"
                         placeholder="Search..."
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-gray-100 border-none rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 transition-all text-xs font-medium placeholder:text-gray-400"
+                        className="w-full pl-9 pr-14 py-2 bg-gray-100 border-none rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 transition-all text-xs font-medium placeholder:text-gray-400"
                     />
-                </div>
-
-                {/* Filter Dropdown */}
-                <div className="relative">
-                    <button
-                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
-                    >
-                        <div className="flex items-center gap-2">
-                            <FilterIcon size={14} className={currentFilter.color} />
-                            <span className="text-xs font-bold text-gray-700">{currentFilter.label}</span>
-                        </div>
-                        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isFilterOpen && (
-                        <>
-                            <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setIsFilterOpen(false)}
-                            />
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-lg shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                {filterOptions.map((opt) => {
-                                    const Icon = opt.icon;
-                                    const isSelected = filter === opt.id;
-                                    return (
-                                        <button
-                                            key={opt.id}
-                                            onClick={() => {
-                                                setFilter(opt.id);
-                                                setIsFilterOpen(false);
-                                            }}
-                                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-primary-50/50' : 'hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            <Icon size={14} className={opt.color} />
-                                            <span className={`text-xs ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-600'}`}>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        {/* Filter button */}
+                        <div ref={filterRef} className="relative">
+                            <button
+                                onClick={() => setFilterOpen(v => !v)}
+                                title="Filter"
+                                className={`p-0.5 transition-colors ${filter !== 'all' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <SlidersHorizontal size={14} />
+                                {filter !== 'all' && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary-500 rounded-full" />}
+                            </button>
+                            {filterOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-100 rounded-xl shadow-xl z-30 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                    {filterOptions.map((opt) => {
+                                        const Icon = opt.icon;
+                                        const isSelected = filter === opt.id;
+                                        return (
+                                            <button
+                                                key={opt.id}
+                                                onClick={() => { setFilter(opt.id); setFilterOpen(false); }}
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${isSelected ? 'bg-primary-50 font-bold text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                                            >
+                                                <Icon size={13} className={opt.color} />
                                                 {opt.label}
-                                            </span>
-                                            {isSelected && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </>
-                    )}
+                                                {isSelected && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        {/* New message button */}
+                        <button
+                            onClick={onNewMessage}
+                            className="p-0.5 text-gray-400 hover:text-primary-600 transition-colors"
+                            title="New Message"
+                        >
+                            <Plus size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
 

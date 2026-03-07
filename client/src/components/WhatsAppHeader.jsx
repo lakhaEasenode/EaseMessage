@@ -40,14 +40,14 @@ const WhatsAppHeader = ({ accounts }) => {
     }, [accounts]);
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 mb-2">
 
             {/* KPI 1: Total Accounts */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-32">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Accounts</p>
-                        <h2 className="text-3xl font-bold text-gray-800 mt-2">{accounts.length}</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mt-1">{accounts.length}</h2>
                     </div>
                     <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
                         <Smartphone size={20} />
@@ -56,11 +56,11 @@ const WhatsAppHeader = ({ accounts }) => {
             </div>
 
             {/* KPI 2: Total Phone Numbers */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-32">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Phone Numbers</p>
-                        <h2 className="text-3xl font-bold text-gray-800 mt-2">{stats.totalNumbers}</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mt-1">{stats.totalNumbers}</h2>
                     </div>
                     <div className="w-10 h-10 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center">
                         <CheckCircle size={20} />
@@ -69,8 +69,8 @@ const WhatsAppHeader = ({ accounts }) => {
             </div>
 
             {/* Chart 1: Quality Rating */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 h-32 flex items-center">
-                <div className="w-full h-full flex items-center">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="w-full h-20 flex items-center">
                     <div className="w-1/2 h-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -111,8 +111,8 @@ const WhatsAppHeader = ({ accounts }) => {
             </div>
 
             {/* Chart 2: Verification Status */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 h-32 flex items-center">
-                <div className="w-full h-full flex items-center">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="w-full h-20 flex items-center">
                     <div className="w-1/2 h-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
