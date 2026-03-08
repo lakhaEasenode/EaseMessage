@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
-import { Users, List as ListIcon, Loader2, Plus, Eye, Edit, Trash2, X, ChevronDown, Upload, UserPlus, Download, FileText, FolderPlus, Check } from 'lucide-react';
+import { Users, List as ListIcon, Loader2, Plus, Eye, Edit, Trash2, X, ChevronDown, Upload, UserPlus, Download, FileText, FolderPlus, Check, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import ContactHeader from '../components/ContactHeader';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -30,13 +30,26 @@ const Contacts = () => {
     const [selectedListIds, setSelectedListIds] = useState([]);
     const [isCreatingListInModal, setIsCreatingListInModal] = useState(false);
     const [newListInModalName, setNewListInModalName] = useState('');
+    const [uploadResult, setUploadResult] = useState(null); // { imported, duplicates, errors, totalRows }
+    const [uploadError, setUploadError] = useState(null);
 
     // Manual Contact List Selection State
     const [selectedManualListIds, setSelectedManualListIds] = useState([]);
+    const [isCreatingListInManual, setIsCreatingListInManual] = useState(false);
+    const [newListInManualName, setNewListInManualName] = useState('');
 
     // Edit Contact State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingContact, setEditingContact] = useState(null);
+
+    // View Contact State
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [viewingContact, setViewingContact] = useState(null);
+
+    // Edit List State
+    const [isEditListModalOpen, setIsEditListModalOpen] = useState(false);
+    const [editingList, setEditingList] = useState(null);
+    const [editListName, setEditListName] = useState('');
 
     // List Filter State
     const [selectedListFilter, setSelectedListFilter] = useState(null);
@@ -51,7 +64,6 @@ const Contacts = () => {
         email: '',
         countryCode: '91',
         companyName: '',
-        sheetName: '',
         optedIn: true
     });
 
@@ -130,7 +142,7 @@ const Contacts = () => {
     };
 
     const handleDownloadSample = () => {
-        const csvContent = "firstName,lastName,countryCode,phoneNumber,email,companyName,sheetName\nJohn,Doe,91,5551234567,john@example.com,Acme Corp,Sheet1";
+        const csvContent = "firstName,lastName,countryCode,phoneNumber,email,companyName\nJohn,Doe,91,5551234567,john@example.com,Acme Corp";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -157,6 +169,22 @@ const Contacts = () => {
         }
     };
 
+    const handleCreateListInManual = async (e) => {
+        e.preventDefault();
+        if (!newListInManualName.trim()) return;
+        try {
+            const config = { headers: { 'x-auth-token': token } };
+            const res = await axios.post(`${API_URL}/lists`, { name: newListInManualName }, config);
+            setLists([...lists, res.data]);
+            setSelectedManualListIds([...selectedManualListIds, res.data._id]);
+            setNewListInManualName('');
+            setIsCreatingListInManual(false);
+        } catch (err) {
+            console.error('Error creating list:', err);
+            alert('Failed to create list');
+        }
+    };
+
     const handleUploadConfirm = async () => {
         if (!selectedFile) return;
 
@@ -166,25 +194,46 @@ const Contacts = () => {
 
         try {
             setUploadLoading(true);
+            setUploadError(null);
             const config = { headers: { 'x-auth-token': token, 'Content-Type': 'multipart/form-data' } };
             const res = await axios.post(`${API_URL}/contacts/upload`, formData, config);
 
-            alert(`Upload Complete:\nImported: ${res.data.summary.imported}\nDuplicates: ${res.data.summary.duplicates}\nErrors: ${res.data.summary.errors}`);
-
+            setUploadResult(res.data.summary);
             setRefreshKey(prev => prev + 1);
-            setIsUploadModalOpen(false);
-            setSelectedFile(null);
-            setSelectedListIds([]);
         } catch (err) {
             console.error('CSV Upload Error:', err);
-            const msg = err.response?.data?.msg || 'Failed to upload CSV. Please ensure the format is correct.';
-            alert(msg);
+            if (err.response?.status === 400) {
+                setUploadError(err.response.data?.msg || 'The file format is invalid. Please use the sample CSV template.');
+            } else if (err.response?.status === 413) {
+                setUploadError('File is too large. Please upload a smaller CSV file.');
+            } else if (!err.response) {
+                setUploadError('Network error. Please check your connection and try again.');
+            } else {
+                setUploadError(err.response?.data?.msg || 'Upload failed. Please ensure your CSV is correctly formatted.');
+            }
         } finally {
             setUploadLoading(false);
             if (fileInputRef.current) {
-                fileInputRef.current.value = ''; // Reset input
+                fileInputRef.current.value = '';
             }
         }
+    };
+
+    const handleUploadModalClose = () => {
+        setIsUploadModalOpen(false);
+        setSelectedFile(null);
+        setSelectedListIds([]);
+        setUploadResult(null);
+        setUploadError(null);
+        setIsCreatingListInModal(false);
+        setNewListInModalName('');
+    };
+
+    const handleUploadAnother = () => {
+        setSelectedFile(null);
+        setUploadResult(null);
+        setUploadError(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleAddContact = async (e) => {
@@ -203,7 +252,6 @@ const Contacts = () => {
                 email: '',
                 countryCode: '91',
                 companyName: '',
-                sheetName: '',
                 optedIn: true
             });
             setSelectedManualListIds([]);
@@ -254,8 +302,8 @@ const Contacts = () => {
             email: contact.email || '',
             countryCode: contact.countryCode || '91',
             companyName: contact.companyName || '',
-            sheetName: contact.sheetName || '',
-            optedIn: contact.optedIn
+            optedIn: contact.optedIn,
+            listIds: contact.lists?.map(l => l._id) || []
         });
         setIsEditModalOpen(true);
     };
@@ -267,7 +315,8 @@ const Contacts = () => {
         try {
             setAddContactLoading(true);
             const config = { headers: { 'x-auth-token': token } };
-            await axios.put(`${API_URL}/contacts/${editingContact._id}`, editingContact, config);
+            const { listIds, ...fields } = editingContact;
+            await axios.put(`${API_URL}/contacts/${editingContact._id}`, { ...fields, listIds }, config);
 
             setIsEditModalOpen(false);
             setEditingContact(null);
@@ -290,7 +339,6 @@ const Contacts = () => {
     };
 
     const handleDeleteList = async (id) => {
-        // Open confirmation modal instead of window.confirm
         const list = lists.find(l => l._id === id);
         setDeleteConfirmModal({
             isOpen: true,
@@ -298,6 +346,33 @@ const Contacts = () => {
             id,
             name: list ? list.name : 'this list'
         });
+    };
+
+    const handleViewContact = (contact) => {
+        setViewingContact(contact);
+        setIsViewModalOpen(true);
+    };
+
+    const handleEditList = (list) => {
+        setEditingList(list);
+        setEditListName(list.name);
+        setIsEditListModalOpen(true);
+    };
+
+    const handleUpdateList = async (e) => {
+        e.preventDefault();
+        if (!editingList || !editListName.trim()) return;
+        try {
+            const config = { headers: { 'x-auth-token': token } };
+            await axios.put(`${API_URL}/lists/${editingList._id}`, { name: editListName }, config);
+            setIsEditListModalOpen(false);
+            setEditingList(null);
+            setEditListName('');
+            setRefreshKey(prev => prev + 1);
+        } catch (err) {
+            console.error('Error updating list:', err);
+            setError(err.response?.data?.msg || 'Failed to update list');
+        }
     };
 
     return (
@@ -453,7 +528,6 @@ const Contacts = () => {
                                                 </td>
                                                 <td className="px-6 py-3 text-left">
                                                     <div className="text-xs text-gray-600 font-medium truncate max-w-[150px]">{contact.companyName || '-'}</div>
-                                                    <div className="text-[10px] text-gray-400 truncate max-w-[150px]">{contact.sheetName}</div>
                                                 </td>
                                                 <td className="px-6 py-3 text-left">
                                                     <div className="flex flex-wrap gap-1 justify-start">
@@ -482,7 +556,16 @@ const Contacts = () => {
                                                 </td>
                                                 <td className="px-6 py-3">
                                                     <div className="flex justify-end gap-1.5">
-                                                        <button className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Eye size={16} /></button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleViewContact(contact);
+                                                            }}
+                                                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                                            title="View Contact"
+                                                        >
+                                                            <Eye size={16} />
+                                                        </button>
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -555,8 +638,26 @@ const Contacts = () => {
                                             </td>
                                             <td className="px-6 py-3">
                                                 <div className="flex justify-end gap-1.5">
-                                                    <button className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Eye size={16} /></button>
-                                                    <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"><Edit size={16} /></button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleListClick(list);
+                                                        }}
+                                                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                                        title="View Contacts"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEditList(list);
+                                                        }}
+                                                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                        title="Rename List"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -658,7 +759,7 @@ const Contacts = () => {
                                 Add New Contact
                             </h3>
                             <button
-                                onClick={() => { setIsManualModalOpen(false); setSelectedManualListIds([]); }}
+                                onClick={() => { setIsManualModalOpen(false); setSelectedManualListIds([]); setIsCreatingListInManual(false); setNewListInManualName(''); }}
                                 className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                                 <X size={20} />
@@ -717,31 +818,17 @@ const Contacts = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        Company Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={newContact.companyName}
-                                        onChange={(e) => setNewContact({ ...newContact, companyName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
-                                        placeholder="Acme Inc"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        Sheet Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={newContact.sheetName}
-                                        onChange={(e) => setNewContact({ ...newContact, sheetName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
-                                        placeholder="Sheet1"
-                                    />
-                                </div>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Company Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newContact.companyName}
+                                    onChange={(e) => setNewContact({ ...newContact, companyName: e.target.value })}
+                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
+                                    placeholder="Acme Inc"
+                                />
                             </div>
 
                             <div className="mb-6">
@@ -795,6 +882,43 @@ const Contacts = () => {
                                     {lists.length === 0 && (
                                         <p className="text-xs text-gray-400">No lists available.</p>
                                     )}
+
+                                    {/* Create New List Inline */}
+                                    {isCreatingListInManual ? (
+                                        <div className="flex gap-2 animate-in fade-in slide-in-from-top-1">
+                                            <input
+                                                type="text"
+                                                value={newListInManualName}
+                                                onChange={(e) => setNewListInManualName(e.target.value)}
+                                                placeholder="New List Name"
+                                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs focus:border-primary-500 focus:outline-none"
+                                                autoFocus
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleCreateListInManual}
+                                                className="px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700"
+                                            >
+                                                Add
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsCreatingListInManual(false)}
+                                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-200"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCreatingListInManual(true)}
+                                            className="text-xs font-bold text-primary-600 flex items-center gap-1 hover:bg-primary-50 px-2 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            <FolderPlus size={14} />
+                                            + Create New List
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -814,7 +938,7 @@ const Contacts = () => {
                             <div className="flex gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => { setIsManualModalOpen(false); setSelectedManualListIds([]); }}
+                                    onClick={() => { setIsManualModalOpen(false); setSelectedManualListIds([]); setIsCreatingListInManual(false); setNewListInManualName(''); }}
                                     className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
                                 >
                                     Cancel
@@ -910,31 +1034,17 @@ const Contacts = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        Company Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={editingContact.companyName}
-                                        onChange={(e) => setEditingContact({ ...editingContact, companyName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
-                                        placeholder="Acme Inc"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        Sheet Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={editingContact.sheetName}
-                                        onChange={(e) => setEditingContact({ ...editingContact, sheetName: e.target.value })}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
-                                        placeholder="Sheet1"
-                                    />
-                                </div>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Company Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editingContact.companyName}
+                                    onChange={(e) => setEditingContact({ ...editingContact, companyName: e.target.value })}
+                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
+                                    placeholder="Acme Inc"
+                                />
                             </div>
 
                             <div className="mb-6">
@@ -948,6 +1058,45 @@ const Contacts = () => {
                                     className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
                                     placeholder="john@example.com"
                                 />
+                            </div>
+
+                            {/* Assign to Lists */}
+                            <div className="mb-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Assign to Lists
+                                </label>
+                                {lists.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                                        {lists.map(list => {
+                                            const isSelected = editingContact.listIds?.includes(list._id);
+                                            return (
+                                                <div
+                                                    key={list._id}
+                                                    onClick={() => {
+                                                        const current = editingContact.listIds || [];
+                                                        setEditingContact({
+                                                            ...editingContact,
+                                                            listIds: isSelected
+                                                                ? current.filter(id => id !== list._id)
+                                                                : [...current, list._id]
+                                                        });
+                                                    }}
+                                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
+                                                        ? 'bg-primary-50 border-primary-200 text-primary-700'
+                                                        : 'bg-white border-gray-200 hover:border-primary-200 hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'}`}>
+                                                        {isSelected && <Check size={10} className="text-white" />}
+                                                    </div>
+                                                    <span className="text-xs font-medium truncate">{list.name}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-gray-400">No lists available.</p>
+                                )}
                             </div>
 
                             <div className="mb-6 flex items-start gap-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
@@ -998,16 +1147,15 @@ const Contacts = () => {
             {isUploadModalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+
+                        {/* Header */}
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                 <Upload size={18} className="text-primary-600" />
-                                Upload Contacts CSV
+                                {uploadResult ? 'Upload Complete' : 'Upload Contacts CSV'}
                             </h3>
                             <button
-                                onClick={() => {
-                                    setIsUploadModalOpen(false);
-                                    setSelectedFile(null);
-                                }}
+                                onClick={handleUploadModalClose}
                                 className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                                 <X size={20} />
@@ -1015,168 +1163,247 @@ const Contacts = () => {
                         </div>
 
                         <div className="p-6">
-                            {/* Step 1: Download Sample */}
-                            <div className="mb-6 bg-primary-50/50 p-4 rounded-xl border border-primary-100">
-                                <p className="text-sm text-gray-600 mb-3">
-                                    Please ensure your CSV file is formatted correctly. Download the sample file to modify.
-                                </p>
-                                <button
-                                    onClick={handleDownloadSample}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-primary-200 text-primary-600 font-bold rounded-lg hover:bg-primary-50 transition-colors text-sm shadow-sm"
-                                >
-                                    <Download size={16} />
-                                    Download Sample CSV
-                                </button>
-                            </div>
-
-                            <div className="relative mb-6">
-                                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                    <div className="w-full border-t border-gray-200"></div>
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="bg-white px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Select File</span>
-                                </div>
-                            </div>
-
-                            {/* Step 2: Select/Show File */}
-                            <div className="mb-6">
-                                {!selectedFile ? (
-                                    <div
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all group"
-                                    >
-                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                            <FileText className="text-gray-400 group-hover:text-primary-500" size={24} />
+                            {/* ── RESULT VIEW ── */}
+                            {uploadResult ? (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    {/* Success icon */}
+                                    <div className="flex flex-col items-center mb-6">
+                                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                                            <CheckCircle2 size={32} className="text-green-600" />
                                         </div>
-                                        <p className="text-sm font-bold text-gray-700">Click to select CSV file</p>
-                                        <p className="text-xs text-gray-400 mt-1">or drag and drop here</p>
+                                        <p className="text-sm text-gray-500">
+                                            Processed <span className="font-bold text-gray-700">{uploadResult.totalRows}</span> rows from your file
+                                        </p>
                                     </div>
-                                ) : (
-                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
-                                                <FileText size={20} />
-                                            </div>
-                                            <div className="overflow-hidden">
-                                                <p className="text-sm font-bold text-gray-800 truncate max-w-[180px]">{selectedFile.name}</p>
-                                                <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-                                            </div>
+
+                                    {/* Stats grid */}
+                                    <div className="grid grid-cols-3 gap-3 mb-6">
+                                        <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
+                                            <p className="text-2xl font-bold text-green-700">{uploadResult.imported}</p>
+                                            <p className="text-xs font-semibold text-green-600 mt-0.5">Imported</p>
                                         </div>
+                                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
+                                            <p className="text-2xl font-bold text-amber-700">{uploadResult.duplicates}</p>
+                                            <p className="text-xs font-semibold text-amber-600 mt-0.5">Skipped</p>
+                                            <p className="text-[10px] text-amber-500 leading-tight">duplicates</p>
+                                        </div>
+                                        <div className={`border rounded-xl p-4 text-center ${uploadResult.errors > 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                                            <p className={`text-2xl font-bold ${uploadResult.errors > 0 ? 'text-red-700' : 'text-gray-400'}`}>{uploadResult.errors}</p>
+                                            <p className={`text-xs font-semibold mt-0.5 ${uploadResult.errors > 0 ? 'text-red-600' : 'text-gray-400'}`}>Failed</p>
+                                            <p className={`text-[10px] leading-tight ${uploadResult.errors > 0 ? 'text-red-500' : 'text-gray-400'}`}>invalid rows</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Contextual notes */}
+                                    {uploadResult.duplicates > 0 && (
+                                        <div className="flex items-start gap-2 mb-3 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+                                            <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                                            <p className="text-xs text-amber-700">{uploadResult.duplicates} contact{uploadResult.duplicates > 1 ? 's were' : ' was'} skipped because they already exist in your account.</p>
+                                        </div>
+                                    )}
+                                    {uploadResult.errors > 0 && (
+                                        <div className="flex items-start gap-2 mb-3 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
+                                            <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+                                            <p className="text-xs text-red-700">{uploadResult.errors} row{uploadResult.errors > 1 ? 's were' : ' was'} skipped due to missing or invalid data (e.g. no name or phone number).</p>
+                                        </div>
+                                    )}
+
+                                    {/* Actions */}
+                                    <div className="flex gap-3 mt-6">
                                         <button
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="text-xs font-bold text-primary-600 hover:underline px-2"
+                                            onClick={handleUploadAnother}
+                                            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm flex items-center justify-center gap-2"
                                         >
-                                            Change
+                                            <RefreshCw size={15} />
+                                            Upload Another
+                                        </button>
+                                        <button
+                                            onClick={handleUploadModalClose}
+                                            className="flex-1 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all text-sm"
+                                        >
+                                            Done
                                         </button>
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Step 3: Assign to Lists */}
-                            <div className="mb-6">
-                                <div className="relative mb-4">
-                                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                        <div className="w-full border-t border-gray-200"></div>
-                                    </div>
-                                    <div className="relative flex justify-center">
-                                        <span className="bg-white px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Assign to Lists (Optional)</span>
-                                    </div>
                                 </div>
+                            ) : (
+                                /* ── FORM VIEW ── */
+                                <>
+                                    {/* Inline error banner */}
+                                    {uploadError && (
+                                        <div className="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 animate-in fade-in slide-in-from-top-1">
+                                            <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-red-700">Upload failed</p>
+                                                <p className="text-xs text-red-600 mt-0.5">{uploadError}</p>
+                                            </div>
+                                            <button onClick={() => setUploadError(null)} className="text-red-400 hover:text-red-600 shrink-0">
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    )}
 
-                                <div className="space-y-3">
-                                    {/* List Selection Grid */}
-                                    {lists.length > 0 && (
-                                        <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1 customize-scrollbar">
-                                            {lists.map(list => {
-                                                const isSelected = selectedListIds.includes(list._id);
-                                                return (
-                                                    <div
-                                                        key={list._id}
-                                                        onClick={() => {
-                                                            if (isSelected) {
-                                                                setSelectedListIds(selectedListIds.filter(id => id !== list._id));
-                                                            } else {
-                                                                setSelectedListIds([...selectedListIds, list._id]);
-                                                            }
-                                                        }}
-                                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
-                                                            ? 'bg-primary-50 border-primary-200 text-primary-700'
-                                                            : 'bg-white border-gray-200 hover:border-primary-200 hover:bg-gray-50'
-                                                            }`}
-                                                    >
-                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
-                                                            }`}>
-                                                            {isSelected && <Check size={10} className="text-white" />}
-                                                        </div>
-                                                        <span className="text-xs font-medium truncate">{list.name}</span>
+                                    {/* Step 1: Download Sample */}
+                                    <div className="mb-6 bg-primary-50/50 p-4 rounded-xl border border-primary-100">
+                                        <p className="text-sm text-gray-600 mb-3">
+                                            Please ensure your CSV file is formatted correctly. Download the sample file to modify.
+                                        </p>
+                                        <button
+                                            onClick={handleDownloadSample}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-primary-200 text-primary-600 font-bold rounded-lg hover:bg-primary-50 transition-colors text-sm shadow-sm"
+                                        >
+                                            <Download size={16} />
+                                            Download Sample CSV
+                                        </button>
+                                    </div>
+
+                                    <div className="relative mb-6">
+                                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                            <div className="w-full border-t border-gray-200"></div>
+                                        </div>
+                                        <div className="relative flex justify-center">
+                                            <span className="bg-white px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Select File</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Step 2: Select/Show File */}
+                                    <div className="mb-6">
+                                        {!selectedFile ? (
+                                            <div
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all group"
+                                            >
+                                                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                                    <FileText className="text-gray-400 group-hover:text-primary-500" size={24} />
+                                                </div>
+                                                <p className="text-sm font-bold text-gray-700">Click to select CSV file</p>
+                                                <p className="text-xs text-gray-400 mt-1">or drag and drop here</p>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
+                                                        <FileText size={20} />
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                    <div className="overflow-hidden">
+                                                        <p className="text-sm font-bold text-gray-800 truncate max-w-[180px]">{selectedFile.name}</p>
+                                                        <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="text-xs font-bold text-primary-600 hover:underline px-2"
+                                                >
+                                                    Change
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                    {/* Create New List Inline */}
-                                    {isCreatingListInModal ? (
-                                        <div className="flex gap-2 animate-in fade-in slide-in-from-top-1">
-                                            <input
-                                                type="text"
-                                                value={newListInModalName}
-                                                onChange={(e) => setNewListInModalName(e.target.value)}
-                                                placeholder="New List Name"
-                                                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs focus:border-primary-500 focus:outline-none"
-                                                autoFocus
-                                            />
-                                            <button
-                                                onClick={handleCreateListInModal}
-                                                className="px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700"
-                                            >
-                                                Add
-                                            </button>
-                                            <button
-                                                onClick={() => setIsCreatingListInModal(false)}
-                                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-200"
-                                            >
-                                                Cancel
-                                            </button>
+                                    {/* Step 3: Assign to Lists */}
+                                    <div className="mb-6">
+                                        <div className="relative mb-4">
+                                            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                                <div className="w-full border-t border-gray-200"></div>
+                                            </div>
+                                            <div className="relative flex justify-center">
+                                                <span className="bg-white px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Assign to Lists (Optional)</span>
+                                            </div>
                                         </div>
-                                    ) : (
+
+                                        <div className="space-y-3">
+                                            {lists.length > 0 && (
+                                                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1 customize-scrollbar">
+                                                    {lists.map(list => {
+                                                        const isSelected = selectedListIds.includes(list._id);
+                                                        return (
+                                                            <div
+                                                                key={list._id}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setSelectedListIds(selectedListIds.filter(id => id !== list._id));
+                                                                    } else {
+                                                                        setSelectedListIds([...selectedListIds, list._id]);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
+                                                                    ? 'bg-primary-50 border-primary-200 text-primary-700'
+                                                                    : 'bg-white border-gray-200 hover:border-primary-200 hover:bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
+                                                                    }`}>
+                                                                    {isSelected && <Check size={10} className="text-white" />}
+                                                                </div>
+                                                                <span className="text-xs font-medium truncate">{list.name}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {isCreatingListInModal ? (
+                                                <div className="flex gap-2 animate-in fade-in slide-in-from-top-1">
+                                                    <input
+                                                        type="text"
+                                                        value={newListInModalName}
+                                                        onChange={(e) => setNewListInModalName(e.target.value)}
+                                                        placeholder="New List Name"
+                                                        className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-xs focus:border-primary-500 focus:outline-none"
+                                                        autoFocus
+                                                    />
+                                                    <button
+                                                        onClick={handleCreateListInModal}
+                                                        className="px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700"
+                                                    >
+                                                        Add
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setIsCreatingListInModal(false)}
+                                                        className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-200"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setIsCreatingListInModal(true)}
+                                                    className="text-xs font-bold text-primary-600 flex items-center gap-1 hover:bg-primary-50 px-2 py-1.5 rounded-lg transition-colors"
+                                                >
+                                                    <FolderPlus size={14} />
+                                                    + Create New List
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-3">
                                         <button
-                                            onClick={() => setIsCreatingListInModal(true)}
-                                            className="text-xs font-bold text-primary-600 flex items-center gap-1 hover:bg-primary-50 px-2 py-1.5 rounded-lg transition-colors"
+                                            onClick={handleUploadModalClose}
+                                            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
                                         >
-                                            <FolderPlus size={14} />
-                                            + Create New List
+                                            Cancel
                                         </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        setIsUploadModalOpen(false);
-                                        setSelectedFile(null);
-                                    }}
-                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleUploadConfirm}
-                                    disabled={!selectedFile || uploadLoading}
-                                    className="flex-1 px-4 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
-                                >
-                                    {uploadLoading ? (
-                                        <Loader2 size={18} className="animate-spin" />
-                                    ) : (
-                                        <>
-                                            <Upload size={18} />
-                                            Upload Contacts
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                                        <button
+                                            onClick={handleUploadConfirm}
+                                            disabled={!selectedFile || uploadLoading}
+                                            className="flex-1 px-4 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                        >
+                                            {uploadLoading ? (
+                                                <>
+                                                    <Loader2 size={18} className="animate-spin" />
+                                                    Uploading…
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Upload size={18} />
+                                                    Upload Contacts
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1222,6 +1449,138 @@ const Contacts = () => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Contact Modal */}
+            {isViewModalOpen && viewingContact && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <Eye size={18} className="text-primary-600" />
+                                Contact Details
+                            </h3>
+                            <button
+                                onClick={() => { setIsViewModalOpen(false); setViewingContact(null); }}
+                                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 flex items-center justify-center font-bold text-xl shadow-sm">
+                                    {viewingContact.firstName?.charAt(0)}
+                                </div>
+                                <div>
+                                    <div className="font-bold text-lg text-gray-800">{viewingContact.firstName} {viewingContact.lastName}</div>
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold ${viewingContact.optedIn ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {viewingContact.optedIn ? 'SUBSCRIBED' : 'UNSUBSCRIBED'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phone</p>
+                                    <p className="text-gray-700 font-mono">{viewingContact.countryCode} {viewingContact.phoneNumber}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Email</p>
+                                    <p className="text-gray-700">{viewingContact.email || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Company</p>
+                                    <p className="text-gray-700">{viewingContact.companyName || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Created</p>
+                                    <p className="text-gray-700">{new Date(viewingContact.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                            {viewingContact.lists?.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Lists</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {viewingContact.lists.map(l => (
+                                            <span key={l._id} className="text-xs bg-primary-50 text-primary-600 px-2.5 py-1 rounded-lg border border-primary-100 font-medium">
+                                                {l.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => { setIsViewModalOpen(false); setViewingContact(null); }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsViewModalOpen(false);
+                                        setViewingContact(null);
+                                        handleEditContact(viewingContact);
+                                    }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all text-sm flex items-center justify-center gap-2"
+                                >
+                                    <Edit size={16} />
+                                    Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit List Modal */}
+            {isEditListModalOpen && editingList && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <Edit size={18} className="text-green-600" />
+                                Rename List
+                            </h3>
+                            <button
+                                onClick={() => { setIsEditListModalOpen(false); setEditingList(null); }}
+                                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleUpdateList} className="p-6">
+                            <div className="mb-6">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">List Name</label>
+                                <input
+                                    type="text"
+                                    value={editListName}
+                                    onChange={(e) => setEditListName(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm"
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsEditListModalOpen(false); setEditingList(null); }}
+                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!editListName.trim()}
+                                    className="flex-1 px-4 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                >
+                                    <Check size={18} />
+                                    Save
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -11,9 +11,20 @@ router.get('/', auth, async (req, res) => {
     try {
         const lists = await List.findActive({ userId: req.user.id })
             .sort({ createdAt: -1 })
-            .populate('contacts', 'firstName lastName phoneNumber');
+            .populate({
+                path: 'contacts',
+                match: { isDeleted: false },
+                select: 'firstName lastName phoneNumber'
+            });
 
-        res.json(lists);
+        // Compute contactCount from active contacts only (fixes stale denormalized counter)
+        const result = lists.map(list => {
+            const obj = list.toObject();
+            obj.contactCount = obj.contacts.length;
+            return obj;
+        });
+
+        res.json(result);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

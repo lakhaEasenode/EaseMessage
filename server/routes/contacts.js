@@ -86,7 +86,6 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
                         phoneNumber: rawPhone,
                         email: row.email || row.Email || '',
                         companyName: row.companyName || row.company || row['Company Name'] || row['Company'] || '',
-                        sheetName: row.sheetName || row.sheet || row['Sheet Name'] || row['Sheet'] || '',
                         optedIn: true,
                         optInSource: 'import',
                         optInDate: new Date(),
@@ -144,7 +143,7 @@ router.get('/', auth, async (req, res) => {
 
         const contacts = await Contact.findActive(query)
             .sort({ createdAt: -1 })
-            .populate('lists', 'name');
+            .populate({ path: 'lists', match: { isDeleted: false }, select: 'name' });
 
         res.json(contacts);
     } catch (err) {
@@ -162,7 +161,7 @@ router.get('/:id', auth, async (req, res) => {
             _id: req.params.id,
             userId: req.user.id,
             isDeleted: false
-        }).populate('lists', 'name');
+        }).populate({ path: 'lists', match: { isDeleted: false }, select: 'name' });
 
         if (!contact) {
             return res.status(404).json({ msg: 'Contact not found' });
@@ -193,35 +192,58 @@ router.post('/', auth, async (req, res) => {
             return res.status(400).json({ msg: 'Contact must opt-in to receive messages' });
         }
 
-        // Check for duplicate
-        const existingContact = await Contact.findOne({
+        // Check for existing active contact (duplicate)
+        const existingActive = await Contact.findOne({
             userId: req.user.id,
-            countryCode: countryCode || '+1',
+            countryCode: countryCode || '91',
             phoneNumber,
             isDeleted: false
         });
 
-        if (existingContact) {
+        if (existingActive) {
             return res.status(400).json({ msg: 'Contact with this phone number already exists' });
         }
 
-        const newContact = new Contact({
+        // Check if a soft-deleted contact exists — restore it instead of creating a new one
+        const deletedContact = await Contact.findOne({
             userId: req.user.id,
-            firstName,
-            lastName,
             countryCode: countryCode || '91',
             phoneNumber,
-            email,
-            companyName,
-            sheetName,
-            tags: tags || [],
-            lists: Array.isArray(listIds) ? listIds : [],
-            optedIn: true,
-            optInSource: 'manual',
-            optInDate: new Date()
+            isDeleted: true
         });
 
-        const contact = await newContact.save();
+        let contact;
+        if (deletedContact) {
+            deletedContact.isDeleted = false;
+            deletedContact.firstName = firstName;
+            deletedContact.lastName = lastName || deletedContact.lastName;
+            deletedContact.email = email !== undefined ? email : deletedContact.email;
+            deletedContact.companyName = companyName !== undefined ? companyName : deletedContact.companyName;
+            deletedContact.sheetName = sheetName !== undefined ? sheetName : deletedContact.sheetName;
+            deletedContact.tags = tags || deletedContact.tags;
+            deletedContact.lists = Array.isArray(listIds) ? listIds : deletedContact.lists;
+            deletedContact.optedIn = true;
+            deletedContact.optInSource = 'manual';
+            deletedContact.optInDate = new Date();
+            contact = await deletedContact.save();
+        } else {
+            const newContact = new Contact({
+                userId: req.user.id,
+                firstName,
+                lastName,
+                countryCode: countryCode || '91',
+                phoneNumber,
+                email,
+                companyName,
+                sheetName,
+                tags: tags || [],
+                lists: Array.isArray(listIds) ? listIds : [],
+                optedIn: true,
+                optInSource: 'manual',
+                optInDate: new Date()
+            });
+            contact = await newContact.save();
+        }
 
         // Update lists to include the new contact
         if (Array.isArray(listIds) && listIds.length > 0) {
@@ -248,7 +270,7 @@ router.post('/', auth, async (req, res) => {
 // @desc    Update contact
 // @access  Private
 router.put('/:id', auth, async (req, res) => {
-    const { firstName, lastName, countryCode, phoneNumber, email, companyName, sheetName, tags, optedIn } = req.body;
+    const { firstName, lastName, countryCode, phoneNumber, email, companyName, sheetName, tags, optedIn, listIds } = req.body;
 
     try {
         let contact = await Contact.findOne({
@@ -271,6 +293,30 @@ router.put('/:id', auth, async (req, res) => {
         if (tags) contact.tags = tags;
         if (optedIn !== undefined) contact.optedIn = optedIn;
         if (req.body.conversationStatus) contact.conversationStatus = req.body.conversationStatus;
+
+        // Sync list memberships if listIds provided
+        if (Array.isArray(listIds)) {
+            const oldListIds = contact.lists.map(id => id.toString());
+            const newListIds = listIds.map(id => id.toString());
+
+            const removedIds = oldListIds.filter(id => !newListIds.includes(id));
+            const addedIds = newListIds.filter(id => !oldListIds.includes(id));
+
+            if (removedIds.length > 0) {
+                await List.updateMany(
+                    { _id: { $in: removedIds } },
+                    { $pull: { contacts: contact._id }, $inc: { contactCount: -1 } }
+                );
+            }
+            if (addedIds.length > 0) {
+                await List.updateMany(
+                    { _id: { $in: addedIds } },
+                    { $addToSet: { contacts: contact._id }, $inc: { contactCount: 1 } }
+                );
+            }
+
+            contact.lists = listIds;
+        }
 
         await contact.save();
         res.json(contact);
@@ -318,6 +364,17 @@ router.delete('/:id', auth, async (req, res) => {
 
         if (!contact) {
             return res.status(404).json({ msg: 'Contact not found' });
+        }
+
+        // Remove contact from lists and decrement count
+        if (contact.lists && contact.lists.length > 0) {
+            await List.updateMany(
+                { _id: { $in: contact.lists } },
+                {
+                    $pull: { contacts: contact._id },
+                    $inc: { contactCount: -1 }
+                }
+            );
         }
 
         await contact.softDelete();
