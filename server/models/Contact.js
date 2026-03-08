@@ -66,7 +66,7 @@ const ContactSchema = new mongoose.Schema({
     },
     optInSource: {
         type: String,
-        enum: ['manual', 'csv', 'api', 'import'],
+        enum: ['manual', 'csv', 'api', 'import', 'whatsapp_inbound'],
         default: 'manual'
     },
     optInDate: {
