@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, CheckCircle, Clock, AlertCircle, Layers, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, CheckCircle, Clock, AlertCircle, Layers, SlidersHorizontal, UserPlus } from 'lucide-react';
 
 const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter, onNewMessage, searchQuery, onSearchChange }) => {
     const [filterOpen, setFilterOpen] = useState(false);
@@ -110,6 +110,7 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                     const StatusIcon = statusConfig.icon;
                     const isActive = activeId === conv.contact._id;
                     const unread = conv.unreadCount || 0;
+                    const isUnsaved = conv.contact.optInSource === 'whatsapp_inbound';
 
                     return (
                         <div
@@ -127,6 +128,11 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
                                     <h3 className={`text-sm truncate ${unread > 0 ? 'font-extrabold text-gray-900' : 'font-bold text-gray-900'}`}>
                                         {conv.contact.firstName} {conv.contact.lastName}
                                     </h3>
+                                    {isUnsaved && (
+                                        <span title="Unsaved contact" className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-600 flex-shrink-0">
+                                            <UserPlus size={10} />
+                                        </span>
+                                    )}
                                     <StatusIcon size={12} className={statusConfig.color} />
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">

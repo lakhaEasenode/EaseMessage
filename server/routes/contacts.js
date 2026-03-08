@@ -292,6 +292,7 @@ router.put('/:id', auth, async (req, res) => {
         if (sheetName !== undefined) contact.sheetName = sheetName;
         if (tags) contact.tags = tags;
         if (optedIn !== undefined) contact.optedIn = optedIn;
+        if (req.body.optInSource) contact.optInSource = req.body.optInSource;
         if (req.body.conversationStatus) contact.conversationStatus = req.body.conversationStatus;
 
         // Sync list memberships if listIds provided

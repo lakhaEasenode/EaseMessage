@@ -9,9 +9,31 @@ import { useToast } from '../components/Toast';
 import { usePageHeader } from '../context/PageHeaderContext';
 import axios from 'axios';
 
+// Lazily create a single AudioContext so the browser doesn't block playback.
+let _audioCtx = null;
+const getAudioContext = () => {
+    if (!_audioCtx) {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return _audioCtx;
+};
+
+// Resume AudioContext on the very first user gesture (browsers require this).
+const _resumeOnGesture = () => {
+    try {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+    } catch (_) { /* noop */ }
+    window.removeEventListener('click', _resumeOnGesture);
+    window.removeEventListener('keydown', _resumeOnGesture);
+};
+window.addEventListener('click', _resumeOnGesture, { once: true });
+window.addEventListener('keydown', _resumeOnGesture, { once: true });
+
 const playNotificationTone = () => {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
         const now = ctx.currentTime;
 
         // Two-note chime: G5 → B5
@@ -279,6 +301,26 @@ const Inbox = () => {
         }
     };
 
+    const handleSaveContact = async (contactId, updates) => {
+        try {
+            const config = { headers: { 'x-auth-token': token } };
+            const res = await axios.put(`${API_URL}/contacts/${contactId}`, updates, config);
+            const saved = res.data;
+
+            // Propagate the updated contact through all state
+            if (activeConversation?.contact._id === contactId) {
+                setActiveConversation(prev => ({ ...prev, contact: saved }));
+            }
+            setConversations(prev =>
+                prev.map(c => c.contact._id === contactId ? { ...c, contact: saved } : c)
+            );
+            toast.success('Contact saved');
+        } catch (err) {
+            console.error('Failed to save contact', err);
+            toast.error(err.response?.data?.msg || 'Failed to save contact');
+        }
+    };
+
     const filteredConversations = conversations.filter(c => {
         // Status filter
         if (filter !== 'all') {
@@ -338,6 +380,7 @@ const Inbox = () => {
                 <ContactDetails
                     contact={activeConversation?.contact}
                     onBack={() => setMobileView('chat')}
+                    onSaveContact={handleSaveContact}
                 />
             </div>
 

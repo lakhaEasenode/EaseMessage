@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
-import { ChevronLeft, Info, ChevronUp } from 'lucide-react';
+import { ChevronLeft, Info, ChevronUp, UserPlus } from 'lucide-react';
 
 import StatusSelector from './StatusSelector';
 
@@ -70,6 +70,22 @@ const ChatWindow = ({ conversation, messages, onSendMessage, onStatusChange, onB
                     </button>
                 </div>
             </div>
+
+            {/* Unsaved contact banner */}
+            {contact.optInSource === 'whatsapp_inbound' && (
+                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between">
+                    <span className="text-xs text-amber-700 flex items-center gap-1.5">
+                        <UserPlus size={12} />
+                        Unsaved number — save this contact to add details
+                    </span>
+                    <button
+                        onClick={onDetails}
+                        className="text-xs font-semibold text-amber-700 hover:text-amber-900 underline"
+                    >
+                        Save
+                    </button>
+                </div>
+            )}
 
             {/* Messages Area */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
