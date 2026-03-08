@@ -141,6 +141,11 @@ router.get('/', auth, async (req, res) => {
             query.lists = req.query.listId;
         }
 
+        // Exclude auto-created inbound contacts that haven't been explicitly saved
+        if (req.query.includeUnsaved !== 'true') {
+            query.optInSource = { $ne: 'whatsapp_inbound' };
+        }
+
         const contacts = await Contact.findActive(query)
             .sort({ createdAt: -1 })
             .populate({ path: 'lists', match: { isDeleted: false }, select: 'name' });

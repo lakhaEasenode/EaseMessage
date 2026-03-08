@@ -233,12 +233,20 @@ router.post('/webhook', async (req, res) => {
                     if (!contact) {
                         // Create new contact with normalized number
                         const profileName = body.entry[0].changes[0].value.contacts?.[0]?.profile?.name || 'Unknown';
+                        // Extract country code: for Indian numbers (91xxx) take first 2 digits,
+                        // fallback to first 1-3 digits based on number length, store the rest as phoneNumber
+                        let cc = '';
+                        let pn = normalizedFrom;
+                        if (normalizedFrom.length > 10) {
+                            cc = normalizedFrom.slice(0, normalizedFrom.length - 10);
+                            pn = normalizedFrom.slice(-10);
+                        }
                         contact = new Contact({
                             userId: phoneRecord.userId,
                             firstName: profileName,
                             lastName: '',
-                            phoneNumber: normalizedFrom,
-                            countryCode: '',
+                            phoneNumber: pn,
+                            countryCode: cc || '0',
                             optedIn: true,
                             optInSource: 'whatsapp_inbound',
                             optInDate: new Date()

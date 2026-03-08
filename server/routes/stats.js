@@ -11,7 +11,8 @@ router.get('/', auth, async (req, res) => {
     try {
         const totalContacts = await Contact.countDocuments({
             userId: req.user.id,
-            isDeleted: false
+            isDeleted: false,
+            optInSource: { $ne: 'whatsapp_inbound' }
         });
 
         const totalLists = await List.countDocuments({
@@ -22,7 +23,8 @@ router.get('/', auth, async (req, res) => {
         const optedInContacts = await Contact.countDocuments({
             userId: req.user.id,
             isDeleted: false,
-            optedIn: true
+            optedIn: true,
+            optInSource: { $ne: 'whatsapp_inbound' }
         });
 
         res.json({
