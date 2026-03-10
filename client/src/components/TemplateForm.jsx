@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus, Search, User, ChevronDown } from 'lucide-react';
+import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus, Search, User, ChevronDown, Globe, PhoneCall, Trash2, ExternalLink } from 'lucide-react';
 
 // Contact attribute definitions derived from the Contact data model
 const CONTACT_ATTRIBUTES = [
@@ -50,6 +50,11 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const [footerText, setFooterText] = useState('');
     const [showButtons, setShowButtons] = useState(false);
     const [buttonType, setButtonType] = useState('call_to_action');
+
+    // CTA buttons state (max 2)
+    const [ctaButtons, setCtaButtons] = useState([
+        { actionType: 'visit_website', text: '', urlType: 'static', url: '', phoneNumber: '' }
+    ]);
 
     // Variable panel state
     const [showVariablePanel, setShowVariablePanel] = useState(false);
@@ -128,6 +133,22 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const filteredAttributes = CONTACT_ATTRIBUTES.filter(attr =>
         attr.label.toLowerCase().includes(variableSearch.toLowerCase())
     );
+
+    const updateCtaButton = (index, field, value) => {
+        setCtaButtons(prev => prev.map((btn, i) => i === index ? { ...btn, [field]: value } : btn));
+    };
+
+    const addCtaButton = () => {
+        if (ctaButtons.length < 2) {
+            setCtaButtons(prev => [...prev, { actionType: 'visit_website', text: '', urlType: 'static', url: '', phoneNumber: '' }]);
+        }
+    };
+
+    const removeCtaButton = (index) => {
+        if (ctaButtons.length > 1) {
+            setCtaButtons(prev => prev.filter((_, i) => i !== index));
+        }
+    };
 
     const isEdit = !!initialData;
     const isApproved = initialData?.status === 'APPROVED';
@@ -333,7 +354,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                     <span className="text-sm font-semibold text-gray-700">Buttons</span>
                                     <ToggleSwitch enabled={showButtons} onChange={setShowButtons} disabled={isApproved} />
                                 </div>
-                                <div className={`transition-all duration-300 ease-in-out ${showButtons ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                                <div className={`transition-all duration-300 ease-in-out ${showButtons ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                                     <div className="px-4 py-3 border-t border-gray-100 space-y-3">
                                         <p className="text-xs text-gray-500">Choose button type</p>
                                         <div className="flex gap-2">
@@ -360,11 +381,141 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                 Quick Reply
                                             </button>
                                         </div>
-                                        <p className="text-[10px] text-gray-400">
-                                            {buttonType === 'call_to_action'
-                                                ? 'Add a URL or phone number button to your message.'
-                                                : 'Add quick reply buttons for fast responses.'}
-                                        </p>
+
+                                        {/* CTA Buttons Form */}
+                                        {buttonType === 'call_to_action' && (
+                                            <div className="space-y-3 pt-1">
+                                                {ctaButtons.map((btn, idx) => (
+                                                    <div key={idx} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                                                        {/* CTA Button Header */}
+                                                        <div className="flex items-center justify-between px-3 py-2 bg-gray-50/60 border-b border-gray-100">
+                                                            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Button {idx + 1}</span>
+                                                            {ctaButtons.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeCtaButton(idx)}
+                                                                    disabled={isApproved}
+                                                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="p-3 space-y-2.5">
+                                                            {/* Action Type */}
+                                                            <div>
+                                                                <label className="block text-[11px] font-medium text-gray-500 mb-1">Type of action</label>
+                                                                <div className="flex gap-1.5">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => updateCtaButton(idx, 'actionType', 'visit_website')}
+                                                                        disabled={isApproved}
+                                                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-all disabled:opacity-50 ${btn.actionType === 'visit_website'
+                                                                            ? 'border-green-500 bg-green-50 text-green-700'
+                                                                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                                                            }`}
+                                                                    >
+                                                                        <Globe size={12} />
+                                                                        Visit website
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => updateCtaButton(idx, 'actionType', 'call_phone')}
+                                                                        disabled={isApproved}
+                                                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-all disabled:opacity-50 ${btn.actionType === 'call_phone'
+                                                                            ? 'border-green-500 bg-green-50 text-green-700'
+                                                                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                                                            }`}
+                                                                    >
+                                                                        <PhoneCall size={12} />
+                                                                        Call phone number
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Button Text */}
+                                                            <div>
+                                                                <label className="block text-[11px] font-medium text-gray-500 mb-1">Button text</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={btn.text}
+                                                                    onChange={e => updateCtaButton(idx, 'text', e.target.value)}
+                                                                    placeholder={btn.actionType === 'visit_website' ? 'e.g. Visit our store' : 'e.g. Call us now'}
+                                                                    className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/10 outline-none text-xs"
+                                                                    disabled={isApproved}
+                                                                    maxLength={25}
+                                                                />
+                                                            </div>
+
+                                                            {/* Visit Website Fields */}
+                                                            {btn.actionType === 'visit_website' && (
+                                                                <>
+                                                                    <div>
+                                                                        <label className="block text-[11px] font-medium text-gray-500 mb-1">URL type</label>
+                                                                        <select
+                                                                            value={btn.urlType}
+                                                                            onChange={e => updateCtaButton(idx, 'urlType', e.target.value)}
+                                                                            className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 focus:border-green-500 outline-none text-xs bg-white"
+                                                                            disabled={isApproved}
+                                                                        >
+                                                                            <option value="static">Static</option>
+                                                                            <option value="dynamic">Dynamic</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Website URL</label>
+                                                                        <input
+                                                                            type="url"
+                                                                            value={btn.url}
+                                                                            onChange={e => updateCtaButton(idx, 'url', e.target.value)}
+                                                                            placeholder="https://example.com"
+                                                                            className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/10 outline-none text-xs"
+                                                                            disabled={isApproved}
+                                                                        />
+                                                                    </div>
+                                                                </>
+                                                            )}
+
+                                                            {/* Call Phone Fields */}
+                                                            {btn.actionType === 'call_phone' && (
+                                                                <div>
+                                                                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Phone number</label>
+                                                                    <input
+                                                                        type="tel"
+                                                                        value={btn.phoneNumber}
+                                                                        onChange={e => updateCtaButton(idx, 'phoneNumber', e.target.value)}
+                                                                        placeholder="+1 (555) 123-4567"
+                                                                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/10 outline-none text-xs"
+                                                                        disabled={isApproved}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                {/* Add another button */}
+                                                {ctaButtons.length < 2 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={addCtaButton}
+                                                        disabled={isApproved}
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                                                    >
+                                                        <Plus size={13} />
+                                                        Add another button
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Quick Reply hint */}
+                                        {buttonType === 'quick_reply' && (
+                                            <p className="text-[10px] text-gray-400">
+                                                Add quick reply buttons for fast responses.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -464,8 +615,16 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                     {showButtons && (
                                         <div className="border-t border-gray-100">
                                             {buttonType === 'call_to_action' ? (
-                                                <div className="text-center py-2 text-[12px] text-[#0088cc] font-medium">
-                                                    Visit Website
+                                                <div className="divide-y divide-gray-100">
+                                                    {ctaButtons.map((btn, idx) => (
+                                                        <div key={idx} className="flex items-center justify-center gap-1.5 py-2 text-[12px] text-[#0088cc] font-medium">
+                                                            {btn.actionType === 'visit_website' ? (
+                                                                <><ExternalLink size={12} /> {btn.text || 'Visit website'}</>
+                                                            ) : (
+                                                                <><PhoneCall size={12} /> {btn.text || 'Call phone'}</>
+                                                            )}
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ) : (
                                                 <div className="flex divide-x divide-gray-100">
