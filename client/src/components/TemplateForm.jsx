@@ -56,6 +56,9 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         { actionType: 'visit_website', text: '', urlType: 'static', url: '', phoneNumber: '' }
     ]);
 
+    // Quick reply buttons state (max 3)
+    const [quickReplyButtons, setQuickReplyButtons] = useState([{ text: '' }]);
+
     // Variable panel state
     const [showVariablePanel, setShowVariablePanel] = useState(false);
     const [variableSearch, setVariableSearch] = useState('');
@@ -90,9 +93,80 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const buildComponents = () => {
+        const components = [];
+
+        // HEADER component
+        if (showHeader && headerText.trim()) {
+            components.push({
+                type: 'HEADER',
+                format: 'TEXT',
+                text: headerText.trim()
+            });
+        }
+
+        // BODY component (always included)
+        components.push({
+            type: 'BODY',
+            text: body
+        });
+
+        // FOOTER component
+        if (showFooter && footerText.trim()) {
+            components.push({
+                type: 'FOOTER',
+                text: footerText.trim()
+            });
+        }
+
+        // BUTTONS component
+        if (showButtons) {
+            if (buttonType === 'call_to_action') {
+                const buttons = ctaButtons
+                    .filter(btn => btn.text.trim())
+                    .map(btn => {
+                        if (btn.actionType === 'visit_website') {
+                            return {
+                                type: 'URL',
+                                text: btn.text.trim(),
+                                url: btn.url.trim()
+                            };
+                        }
+                        return {
+                            type: 'PHONE_NUMBER',
+                            text: btn.text.trim(),
+                            phone_number: btn.phoneNumber.trim()
+                        };
+                    });
+                if (buttons.length > 0) {
+                    components.push({
+                        type: 'BUTTONS',
+                        buttons
+                    });
+                }
+            } else if (buttonType === 'quick_reply') {
+                const buttons = quickReplyButtons
+                    .filter(btn => btn.text.trim())
+                    .map(btn => ({
+                        type: 'QUICK_REPLY',
+                        text: btn.text.trim()
+                    }));
+                if (buttons.length > 0) {
+                    components.push({
+                        type: 'BUTTONS',
+                        buttons
+                    });
+                }
+            }
+        }
+
+        return components;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit({ name, category, language, body });
+        const components = buildComponents();
+        onSubmit({ name, category, language, body, components });
     };
 
     const insertAtCursor = (before, after = '') => {
@@ -147,6 +221,22 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const removeCtaButton = (index) => {
         if (ctaButtons.length > 1) {
             setCtaButtons(prev => prev.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateQuickReply = (index, text) => {
+        setQuickReplyButtons(prev => prev.map((btn, i) => i === index ? { text } : btn));
+    };
+
+    const addQuickReply = () => {
+        if (quickReplyButtons.length < 3) {
+            setQuickReplyButtons(prev => [...prev, { text: '' }]);
+        }
+    };
+
+    const removeQuickReply = (index) => {
+        if (quickReplyButtons.length > 1) {
+            setQuickReplyButtons(prev => prev.filter((_, i) => i !== index));
         }
     };
 
@@ -510,11 +600,44 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                             </div>
                                         )}
 
-                                        {/* Quick Reply hint */}
+                                        {/* Quick Reply Buttons Form */}
                                         {buttonType === 'quick_reply' && (
-                                            <p className="text-[10px] text-gray-400">
-                                                Add quick reply buttons for fast responses.
-                                            </p>
+                                            <div className="space-y-3 pt-1">
+                                                {quickReplyButtons.map((btn, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={btn.text}
+                                                            onChange={e => updateQuickReply(idx, e.target.value)}
+                                                            placeholder={`Button ${idx + 1} text`}
+                                                            className="flex-1 px-2.5 py-1.5 rounded-md border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/10 outline-none text-xs"
+                                                            disabled={isApproved}
+                                                            maxLength={25}
+                                                        />
+                                                        {quickReplyButtons.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeQuickReply(idx)}
+                                                                disabled={isApproved}
+                                                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {quickReplyButtons.length < 3 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={addQuickReply}
+                                                        disabled={isApproved}
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                                                    >
+                                                        <Plus size={13} />
+                                                        Add another button
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -627,13 +750,12 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="flex divide-x divide-gray-100">
-                                                    <div className="flex-1 text-center py-2 text-[12px] text-[#0088cc] font-medium">
-                                                        Yes
-                                                    </div>
-                                                    <div className="flex-1 text-center py-2 text-[12px] text-[#0088cc] font-medium">
-                                                        No
-                                                    </div>
+                                                <div className="divide-y divide-gray-100">
+                                                    {quickReplyButtons.map((btn, idx) => (
+                                                        <div key={idx} className="text-center py-2 text-[12px] text-[#0088cc] font-medium">
+                                                            {btn.text || `Button ${idx + 1}`}
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>

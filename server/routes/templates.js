@@ -142,7 +142,7 @@ router.get('/sync', auth, async (req, res) => {
 // @desc    Create a new template via Facebook Graph API
 // @access  Private
 router.post('/', auth, async (req, res) => {
-    const { name, category, language, body } = req.body;
+    const { name, category, language, body, components } = req.body;
 
     if (!name || !category || !body) {
         return res.status(400).json({ msg: 'Please provide all required fields' });
@@ -165,19 +165,16 @@ router.post('/', auth, async (req, res) => {
             }
         }
 
-        // 3. Construct Graph API Payload
-        // Note: For simple text text templates, we use type: BODY
-        // The user provided structure implies 'components' array
+        // 3. Construct Graph API Payload using components from the client
+        const graphComponents = components && components.length > 0
+            ? components
+            : [{ type: "BODY", text: body }];
+
         const graphPayload = {
             name: name,
             category: category,
             language: language,
-            components: [
-                {
-                    type: "BODY",
-                    text: body
-                }
-            ]
+            components: graphComponents
         };
 
         // 4. Call Facebook Graph API
@@ -194,7 +191,7 @@ router.post('/', auth, async (req, res) => {
 
         const fbData = response.data; // { id: "...", status: "...", category: "..." }
 
-        // 5. Save to Database
+        // 5. Save to Database (store the components array)
         const newTemplate = new Template({
             userId: req.user.id,
             wabaId: wabaAccount._id,
@@ -204,6 +201,7 @@ router.post('/', auth, async (req, res) => {
             language,
             body,
             variables,
+            components: graphComponents,
             status: fbData.status || 'PENDING'
         });
 
