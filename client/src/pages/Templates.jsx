@@ -379,6 +379,7 @@ const Templates = () => {
                     }}
                     onSubmit={handleCreate}
                     initialData={editingTemplate}
+                    wabaAccounts={wabaAccounts}
                 />
             )}
         </div>
