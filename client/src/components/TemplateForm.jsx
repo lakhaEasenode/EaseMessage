@@ -1,5 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus } from 'lucide-react';
+import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus, Search, User, ChevronDown } from 'lucide-react';
+
+// Contact attribute definitions derived from the Contact data model
+const CONTACT_ATTRIBUTES = [
+    { key: 'FIRSTNAME', label: 'FIRSTNAME', type: 'Text' },
+    { key: 'LASTNAME', label: 'LASTNAME', type: 'Text' },
+    { key: 'PHONE_NUMBER', label: 'PHONE_NUMBER', type: 'Text' },
+    { key: 'COUNTRY_CODE', label: 'COUNTRY_CODE', type: 'Text' },
+    { key: 'EMAIL', label: 'EMAIL', type: 'Text' },
+    { key: 'COMPANY_NAME', label: 'COMPANY_NAME', type: 'Text' },
+    { key: 'OPTED_IN', label: 'OPTED_IN', type: 'Boolean' },
+    { key: 'OPT_IN_SOURCE', label: 'OPT_IN_SOURCE', type: 'Category' },
+    { key: 'TAGS', label: 'TAGS', type: 'Text' },
+    { key: 'SHEET_NAME', label: 'SHEET_NAME', type: 'Text' },
+    { key: 'CONVERSATION_STATUS', label: 'CONVERSATION_STATUS', type: 'Category' },
+];
+
+const TYPE_COLORS = {
+    Text: 'bg-blue-50 text-blue-600 border-blue-100',
+    Boolean: 'bg-amber-50 text-amber-600 border-amber-100',
+    Category: 'bg-purple-50 text-purple-600 border-purple-100',
+};
 
 // Inline toggle switch component
 const ToggleSwitch = ({ enabled, onChange, disabled }) => (
@@ -30,6 +51,14 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const [showButtons, setShowButtons] = useState(false);
     const [buttonType, setButtonType] = useState('call_to_action');
 
+    // Variable panel state
+    const [showVariablePanel, setShowVariablePanel] = useState(false);
+    const [variableSearch, setVariableSearch] = useState('');
+    const [selectedAttribute, setSelectedAttribute] = useState(null);
+    const [fallbackValue, setFallbackValue] = useState('');
+    const [isAttrDropdownOpen, setIsAttrDropdownOpen] = useState(false);
+    const attrDropdownRef = useRef(null);
+
     const bodyRef = useRef(null);
 
     useEffect(() => {
@@ -44,6 +73,17 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     useEffect(() => {
         setPreviewBody(body);
     }, [body]);
+
+    // Close attribute dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (attrDropdownRef.current && !attrDropdownRef.current.contains(e.target)) {
+                setIsAttrDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -70,6 +110,25 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         insertAtCursor(`{{${count}}}`);
     };
 
+    const openVariablePanel = () => {
+        setSelectedAttribute(null);
+        setFallbackValue('');
+        setVariableSearch('');
+        setIsAttrDropdownOpen(false);
+        setShowVariablePanel(true);
+    };
+
+    const handleInsertVariable = () => {
+        if (!selectedAttribute) return;
+        const count = (body.match(/{{(\d+)}}/g) || []).length + 1;
+        insertAtCursor(`{{${count}}}`);
+        setShowVariablePanel(false);
+    };
+
+    const filteredAttributes = CONTACT_ATTRIBUTES.filter(attr =>
+        attr.label.toLowerCase().includes(variableSearch.toLowerCase())
+    );
+
     const isEdit = !!initialData;
     const isApproved = initialData?.status === 'APPROVED';
     const wabaName = initialData?.wabaId?.name || wabaAccounts[0]?.name || 'WhatsApp Business';
@@ -77,7 +136,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex overflow-hidden animate-in zoom-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex overflow-hidden animate-in zoom-in duration-200 relative">
 
                 {/* Left Side: Form */}
                 <div className="w-full lg:w-1/2 flex flex-col border-r border-gray-100">
@@ -189,10 +248,10 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                         <div className="flex items-center gap-1">
                                             <button
                                                 type="button"
-                                                onClick={addVariable}
+                                                onClick={openVariablePanel}
                                                 disabled={isApproved}
                                                 className="px-2 py-1 text-xs font-mono font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                title="Add variable"
+                                                title="Insert variable"
                                             >
                                                 {'{{'}<span className="text-green-500">x</span>{'}}'}
                                             </button>
@@ -438,6 +497,151 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                         {/* Home indicator */}
                         <div className="flex justify-center py-2 bg-white">
                             <div className="w-28 h-1 bg-gray-900 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+                {/* ── Insert Variable Slide-Over Panel ── */}
+                <div
+                    className={`absolute top-0 right-0 h-full w-full sm:w-[380px] bg-white shadow-2xl border-l border-gray-200 z-10 flex flex-col transition-transform duration-300 ease-in-out ${showVariablePanel ? 'translate-x-0' : 'translate-x-full'}`}
+                >
+                    {/* Panel Header */}
+                    <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <h4 className="font-bold text-gray-800 text-base">Insert variable</h4>
+                        <button
+                            type="button"
+                            onClick={() => setShowVariablePanel(false)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {/* Panel Body */}
+                    <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                        {/* Attributes Section */}
+                        <div>
+                            <h5 className="text-sm font-semibold text-gray-800 mb-1">Attributes</h5>
+                            <p className="text-xs text-gray-400 mb-3">Choose the attribute that will be personalized</p>
+
+                            {/* Searchable Dropdown */}
+                            <div className="relative" ref={attrDropdownRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAttrDropdownOpen(!isAttrDropdownOpen)}
+                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-all ${selectedAttribute
+                                        ? 'border-green-500 bg-green-50/30 text-gray-800'
+                                        : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {selectedAttribute ? (
+                                            <>
+                                                <User size={14} className="text-gray-400" />
+                                                <span className="text-gray-800 font-medium">{selectedAttribute.label}</span>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${TYPE_COLORS[selectedAttribute.type]}`}>
+                                                    {selectedAttribute.type}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span>Search or type an attribute</span>
+                                        )}
+                                    </div>
+                                    <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${isAttrDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Dropdown List */}
+                                {isAttrDropdownOpen && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 z-20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                        {/* Search Input */}
+                                        <div className="p-2 border-b border-gray-50">
+                                            <div className="relative">
+                                                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    value={variableSearch}
+                                                    onChange={e => setVariableSearch(e.target.value)}
+                                                    placeholder="Search attributes..."
+                                                    className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-xs"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Attributes List */}
+                                        <div className="max-h-52 overflow-y-auto p-1">
+                                            {filteredAttributes.length === 0 ? (
+                                                <div className="px-3 py-4 text-center text-xs text-gray-400">No attributes found</div>
+                                            ) : (
+                                                filteredAttributes.map(attr => (
+                                                    <button
+                                                        key={attr.key}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedAttribute(attr);
+                                                            setIsAttrDropdownOpen(false);
+                                                            setVariableSearch('');
+                                                        }}
+                                                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm transition-colors ${selectedAttribute?.key === attr.key
+                                                            ? 'bg-green-50 text-green-800'
+                                                            : 'text-gray-700 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        <User size={14} className="text-gray-400 shrink-0" />
+                                                        <span className="flex-1 font-medium text-xs">{attr.label}</span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${TYPE_COLORS[attr.type]}`}>
+                                                            {attr.type}
+                                                        </span>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Value if empty Section */}
+                        <div>
+                            <h5 className="text-sm font-semibold text-gray-800 mb-1">Value if empty</h5>
+                            <p className="text-xs text-gray-400 mb-3">
+                                If the contact does not have a value for this attribute, this default will be used instead
+                            </p>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={fallbackValue}
+                                    onChange={e => {
+                                        if (e.target.value.length <= 40) setFallbackValue(e.target.value);
+                                    }}
+                                    placeholder="Default value"
+                                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm pr-14"
+                                    maxLength={40}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 tabular-nums">
+                                    {fallbackValue.length}<span className="text-gray-300">/</span>40
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Panel Footer */}
+                    <div className="p-5 border-t border-gray-100 bg-gray-50">
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowVariablePanel(false)}
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-white transition-all text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleInsertVariable}
+                                disabled={!selectedAttribute}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                                Save
+                            </button>
                         </div>
                     </div>
                 </div>
