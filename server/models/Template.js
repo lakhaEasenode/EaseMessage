@@ -38,7 +38,7 @@ const TemplateSchema = new mongoose.Schema({
     }],
     status: {
         type: String,
-        enum: ['APPROVED', 'PENDING', 'REJECTED', 'PAUSED'],
+        enum: ['APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'DISABLED'],
         default: 'PENDING'
     },
     components: {

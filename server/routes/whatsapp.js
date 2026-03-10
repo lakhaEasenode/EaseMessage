@@ -339,6 +339,44 @@ router.post('/webhook', async (req, res) => {
                 }
             }
 
+            // Handle template status updates from Meta
+            const templateStatusUpdate = value?.message_template_status_update;
+            if (templateStatusUpdate) {
+                const Template = require('../models/Template');
+                const { message_template_id, message_template_name, event, reason } = templateStatusUpdate;
+
+                console.log(`Template status webhook: ${message_template_name} (${message_template_id}) → ${event}`);
+
+                // Meta sends: event = "APPROVED" | "REJECTED" | "PAUSED" | "DISABLED" | "PENDING_DELETION"
+                const statusMap = {
+                    APPROVED: 'APPROVED',
+                    REJECTED: 'REJECTED',
+                    PAUSED: 'PAUSED',
+                    DISABLED: 'DISABLED',
+                    PENDING_DELETION: 'REJECTED',
+                };
+                const newStatus = statusMap[event];
+
+                if (newStatus && message_template_id) {
+                    const template = await Template.findOne({ template_id: String(message_template_id) });
+                    if (template) {
+                        template.status = newStatus;
+                        await template.save();
+
+                        emitToUser(template.userId.toString(), 'template:status', {
+                            templateId: template._id.toString(),
+                            templateName: template.name,
+                            status: newStatus,
+                            reason: reason || null,
+                        });
+
+                        console.log(`Template "${template.name}" status updated to ${newStatus}`);
+                    } else {
+                        console.log(`Template not found for Meta ID: ${message_template_id}`);
+                    }
+                }
+            }
+
             res.sendStatus(200);
         } else {
             res.sendStatus(404);
