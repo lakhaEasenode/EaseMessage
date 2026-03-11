@@ -278,7 +278,10 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                 <input
                                     type="text"
                                     value={name}
-                                    onChange={e => setName(e.target.value)}
+                                    onChange={e => {
+                                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                                        setName(val);
+                                    }}
                                     placeholder="e.g. welcome_offer_v1"
                                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm font-mono"
                                     disabled={isApproved}
