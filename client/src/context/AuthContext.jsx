@@ -93,17 +93,12 @@ export const AuthProvider = ({ children }) => {
 
         try {
             const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/auth/register`, formData, config);
-
-            dispatch({
-                type: 'REGISTER_SUCCESS',
-                payload: res.data
-            });
-
-            loadUser();
+            // Don't auto-login — user needs to verify OTP first
+            return res.data;
         } catch (err) {
             dispatch({
                 type: 'REGISTER_FAIL',
-                payload: err.response.data.msg
+                payload: err.response?.data?.msg
             });
             throw err;
         }

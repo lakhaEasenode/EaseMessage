@@ -16,6 +16,9 @@ import Campaigns from './pages/Campaigns';
 import CampaignDetail from './components/campaigns/CampaignDetail';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
+import VerifyOTP from './pages/VerifyOTP';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useContext(AuthContext);
@@ -29,25 +32,28 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-      <ToastProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+        <ToastProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/verify-otp" element={<VerifyOTP />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-          <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/campaigns/:id" element={<CampaignDetail />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/whatsapp-accounts" element={<WhatsAppAccounts />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </Router>
-      </ToastProvider>
+              <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/campaigns/:id" element={<CampaignDetail />} />
+                <Route path="/contacts" element={<Contacts />} />
+                <Route path="/whatsapp-accounts" element={<WhatsAppAccounts />} />
+                <Route path="/templates" element={<Templates />} />
+                <Route path="/inbox" element={<Inbox />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+            </Routes>
+          </Router>
+        </ToastProvider>
       </SocketProvider>
     </AuthProvider>
   );

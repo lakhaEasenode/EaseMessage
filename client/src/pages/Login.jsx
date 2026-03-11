@@ -40,6 +40,10 @@ const Login = () => {
             console.log('Login successful');
         } catch (err) {
             console.error('Login error:', err);
+            if (err.response?.data?.needsVerification) {
+                navigate(`/verify-otp?email=${encodeURIComponent(err.response.data.email)}`);
+                return;
+            }
             const errorMsg = err.response?.data?.msg || err.message || 'Login failed';
             setError(errorMsg);
         }
@@ -88,6 +92,14 @@ const Login = () => {
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
                                 placeholder="Password"
                             />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end">
+                        <div className="text-sm">
+                            <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
+                                Forgot your password?
+                            </Link>
                         </div>
                     </div>
 

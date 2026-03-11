@@ -32,6 +32,7 @@ const Register = () => {
         } else {
             try {
                 await register({ firstName, email, password });
+                navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
             } catch (err) {
                 setError(err.response?.data?.msg || 'Registration failed');
             }
