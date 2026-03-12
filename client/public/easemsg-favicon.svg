@@ -1,0 +1,17 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="easeGradient" x1="8" y1="54" x2="56" y2="10" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1656B4"/>
+      <stop offset="0.52" stop-color="#1E88D9"/>
+      <stop offset="1" stop-color="#49D26D"/>
+    </linearGradient>
+  </defs>
+  <path d="M31.5 6C18.52 6 8 15.89 8 28.1C8 33.95 10.42 39.28 14.38 43.24L12.11 55.5L23.92 49.51C26.28 50.05 28.83 50.2 31.5 50.2C44.48 50.2 55 40.31 55 28.1C55 15.89 44.48 6 31.5 6Z" fill="url(#easeGradient)"/>
+  <circle cx="22" cy="25" r="3.7" fill="white"/>
+  <circle cx="31.5" cy="18.8" r="3.7" fill="white"/>
+  <circle cx="39.8" cy="25.5" r="3.7" fill="white"/>
+  <circle cx="31.3" cy="34.2" r="3.7" fill="white"/>
+  <path d="M24.7 23L28.8 20.4M34.4 21L37.1 23.2M24.5 27.7L28.8 31M37.2 28.1L34.1 31.3" stroke="white" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M45.5 16.8C49.05 19.27 51.27 23.02 51.6 27.2M43.9 23.3C45.56 24.49 46.62 26.32 46.78 28.36" stroke="white" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M40.6 35.2H49.7M49.7 35.2L46.1 31.6M49.7 35.2L46.1 38.8" stroke="white" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

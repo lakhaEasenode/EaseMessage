@@ -49,10 +49,8 @@ npm install
 3. Set up environment variables:
 
 **Server (.env)**:
-```
-MONGO_URI=your_mongodb_uri
-JWT_SECRET=your_jwt_secret
-PORT=3301
+```bash
+cp server/.env.example server/.env
 ```
 
 **Client (.env)**:
@@ -75,6 +73,46 @@ npm run dev
 ```
 
 The application will be available at `http://localhost:5173`
+
+## Webhooks and ngrok
+
+For local Stripe and Razorpay testing, expose the server with ngrok and then set the public URLs in `server/.env`.
+
+1. Start the server:
+```bash
+cd server
+npm run dev
+```
+
+2. Expose the API with ngrok:
+```bash
+cd server
+npm run ngrok:start
+```
+
+3. Copy the public ngrok URL and update these env vars in `server/.env`:
+```bash
+PUBLIC_SERVER_URL=https://your-ngrok-url.ngrok-free.app
+PUBLIC_API_URL=https://your-ngrok-url.ngrok-free.app/api
+STRIPE_WEBHOOK_URL=https://your-ngrok-url.ngrok-free.app/api/billing/webhooks/stripe
+RAZORPAY_WEBHOOK_URL=https://your-ngrok-url.ngrok-free.app/api/billing/webhooks/razorpay
+WHATSAPP_WEBHOOK_URL=https://your-ngrok-url.ngrok-free.app/api/whatsapp/webhook
+```
+
+4. Print the exact webhook config:
+```bash
+cd server
+npm run webhooks:print
+```
+
+Webhook endpoints:
+- Stripe: `/api/billing/webhooks/stripe`
+- Razorpay: `/api/billing/webhooks/razorpay`
+- WhatsApp verify: `GET /api/whatsapp/webhook`
+- WhatsApp events: `POST /api/whatsapp/webhook`
+
+Webhook config API:
+- `GET /api/billing/webhook-config`
 
 ## Tech Stack
 

@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { MessageSquare } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 const Login = () => {
     const authContext = useContext(AuthContext);
@@ -53,9 +53,7 @@ const Login = () => {
             <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
                 <div className="text-center">
                     <div className="flex justify-center mb-4">
-                        <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center text-white font-bold">
-                            <MessageSquare size={24} />
-                        </div>
+                        <BrandLogo compact />
                     </div>
                     <h2 className="mt-2 text-3xl font-extrabold text-gray-900">
                         Sign in to your account

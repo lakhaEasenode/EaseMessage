@@ -2,6 +2,7 @@ const Workspace = require('../models/Workspace');
 const WorkspaceInvite = require('../models/WorkspaceInvite');
 const WorkspaceMember = require('../models/WorkspaceMember');
 const User = require('../models/User');
+const { getWorkspaceBillingSummary } = require('../services/billingService');
 
 const DEFAULT_ROLE = 'owner';
 
@@ -10,7 +11,6 @@ const serializeWorkspace = (workspace) => ({
     name: workspace.name,
     companyName: workspace.companyName || '',
     addressLine1: workspace.addressLine1 || '',
-    addressLine2: workspace.addressLine2 || '',
     city: workspace.city || '',
     state: workspace.state || '',
     countryCode: workspace.countryCode || '',
@@ -119,6 +119,9 @@ const buildAuthUserPayload = async (userId, preferredWorkspaceId = null) => {
     const pendingInvites = context.activeMembership
         ? await WorkspaceInvite.countDocuments({ workspaceId: context.activeMembership.workspaceId._id, status: 'pending' })
         : 0;
+    const billing = context.activeMembership
+        ? await getWorkspaceBillingSummary(context.activeMembership.workspaceId._id)
+        : null;
 
     return {
         id: context.user.id,
@@ -126,11 +129,13 @@ const buildAuthUserPayload = async (userId, preferredWorkspaceId = null) => {
         businessName: context.user.businessName,
         email: context.user.email,
         subscription: context.user.subscription,
+        billing,
         activeWorkspaceId: context.activeMembership?.workspaceId?._id?.toString?.() || null,
         currentWorkspace: context.activeMembership ? {
             ...serializeWorkspace(context.activeMembership.workspaceId),
             role: context.activeMembership.role,
-            pendingInvites
+            pendingInvites,
+            billing
         } : null,
         workspaces: context.workspaces
     };

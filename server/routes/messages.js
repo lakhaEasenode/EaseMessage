@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
+const { requireBillingWriteAccess } = require('../middleware/billing');
 const Message = require('../models/Message');
 const Contact = require('../models/Contact');
 const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
@@ -136,7 +137,7 @@ router.get('/:contactId', auth, async (req, res) => {
 // @route   POST api/messages/send
 // @desc    Send a message (text or template)
 // @access  Private
-router.post('/send', auth, async (req, res) => {
+router.post('/send', [auth, requireBillingWriteAccess], async (req, res) => {
     const { contactId, type, content, templateData } = req.body;
 
     try {

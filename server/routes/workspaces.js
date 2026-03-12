@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const geoip = require('geoip-lite');
 const auth = require('../middleware/auth');
 const Workspace = require('../models/Workspace');
 const WorkspaceInvite = require('../models/WorkspaceInvite');
@@ -7,11 +8,26 @@ const WorkspaceMember = require('../models/WorkspaceMember');
 const User = require('../models/User');
 const { buildAuthUserPayload, getWorkspaceContextForUser, serializeWorkspace } = require('../utils/workspace');
 const { sendWorkspaceInvite } = require('../services/emailService');
+const { ensureWorkspaceBilling } = require('../services/billingService');
+const { getBillingCurrency } = require('../config/billingPlans');
 
 const router = express.Router();
 
 const canManageWorkspace = (role) => ['owner', 'admin'].includes(role);
 const INVITE_EXPIRY_DAYS = 7;
+const TIMEZONE_FALLBACKS = {
+    'Asia/Kolkata': 'IN',
+    'Asia/Calcutta': 'IN',
+    'America/New_York': 'US',
+    'America/Chicago': 'US',
+    'America/Denver': 'US',
+    'America/Los_Angeles': 'US',
+    'Europe/London': 'GB',
+    'Europe/Paris': 'FR',
+    'Asia/Dubai': 'AE',
+    'Asia/Singapore': 'SG',
+    'Australia/Sydney': 'AU'
+};
 
 const getCurrentMembership = async (userId) => {
     const context = await getWorkspaceContextForUser(userId);
@@ -20,6 +36,29 @@ const getCurrentMembership = async (userId) => {
     }
 
     return context.activeMembership;
+};
+
+const getRequestIp = (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.ip;
+};
+
+const detectCountryCode = (req) => {
+    const requestIp = getRequestIp(req);
+    const lookup = requestIp ? geoip.lookup(requestIp) : null;
+    if (lookup?.country) {
+        return { countryCode: lookup.country, source: 'ip' };
+    }
+
+    const timezone = req.headers['x-timezone'];
+    if (timezone && TIMEZONE_FALLBACKS[timezone]) {
+        return { countryCode: TIMEZONE_FALLBACKS[timezone], source: 'timezone' };
+    }
+
+    return { countryCode: 'IN', source: 'default' };
 };
 
 router.get('/', auth, async (req, res) => {
@@ -97,6 +136,16 @@ router.get('/current', auth, async (req, res) => {
     }
 });
 
+router.get('/detect-country', auth, async (req, res) => {
+    try {
+        const suggestion = detectCountryCode(req);
+        res.json(suggestion);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 router.put('/current', auth, async (req, res) => {
     try {
         const membership = await getCurrentMembership(req.user.id);
@@ -117,9 +166,6 @@ router.put('/current', auth, async (req, res) => {
         }
         if (typeof req.body.addressLine1 === 'string') {
             updates.addressLine1 = req.body.addressLine1.trim();
-        }
-        if (typeof req.body.addressLine2 === 'string') {
-            updates.addressLine2 = req.body.addressLine2.trim();
         }
         if (typeof req.body.city === 'string') {
             updates.city = req.body.city.trim();
@@ -143,7 +189,15 @@ router.put('/current', auth, async (req, res) => {
             { new: true }
         );
 
-        const payload = await buildAuthUserPayload(req.user.id, invitation.workspaceId._id);
+        if (Object.prototype.hasOwnProperty.call(updates, 'countryCode')) {
+            const billing = await ensureWorkspaceBilling(workspace);
+            billing.countryCode = workspace.countryCode || '';
+            billing.currency = getBillingCurrency(workspace.countryCode || '');
+            billing.collectionMode = workspace.countryCode === 'IN' ? 'manual_invoice' : 'autopay';
+            await billing.save();
+        }
+
+        const payload = await buildAuthUserPayload(req.user.id, workspace._id);
 
         res.json({
             msg: 'Workspace updated successfully',

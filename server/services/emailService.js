@@ -74,4 +74,74 @@ const sendWorkspaceInvite = async ({ toEmail, inviterName, workspaceName, accept
     await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendOTP, sendWorkspaceInvite };
+const sendBillingReminderEmail = async ({ toEmail, workspaceName, reminderCode, dueDate, amountDue, currency, paymentUrl }) => {
+    const labels = {
+        due_in_3: 'Your invoice is due in 3 days',
+        due_in_1: 'Your invoice is due tomorrow',
+        due_today: 'Your invoice is due today',
+        overdue_3: 'Your invoice is overdue',
+        overdue_6: 'Final reminder before account restriction'
+    };
+
+    const subject = labels[reminderCode] || 'EaseMessage billing reminder';
+    const formattedAmount = typeof amountDue === 'number'
+        ? `${currency?.toUpperCase?.() || 'USD'} ${amountDue / 100}`
+        : '';
+
+    const mailOptions = {
+        from: `"EaseMessage" <${process.env.SMTP_EMAIL}>`,
+        to: toEmail,
+        subject,
+        html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+                <div style="background: linear-gradient(135deg, #0f766e, #2563eb); padding: 32px 24px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">EaseMessage</h1>
+                    <p style="color: rgba(255,255,255,0.88); margin: 8px 0 0; font-size: 14px;">Billing reminder</p>
+                </div>
+                <div style="padding: 32px 24px;">
+                    <p style="color: #111827; font-size: 16px; margin: 0 0 12px;">${workspaceName || 'Your workspace'} has an invoice that needs attention.</p>
+                    <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">Due date: <strong>${dueDate ? new Date(dueDate).toLocaleDateString() : 'N/A'}</strong><br />Amount: <strong>${formattedAmount}</strong></p>
+                    ${paymentUrl ? `<div style="text-align: center; margin: 28px 0;"><a href="${paymentUrl}" style="display: inline-block; background: linear-gradient(135deg, #0f766e, #2563eb); color: #ffffff; text-decoration: none; padding: 14px 22px; border-radius: 12px; font-weight: 600;">Pay invoice</a></div>` : ''}
+                </div>
+                <div style="background: #f9fafb; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} EaseMessage. All rights reserved.</p>
+                </div>
+            </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
+const sendEnterprisePlanRequest = async ({ adminEmail, requesterName, requesterEmail, workspaceName, companyName, note }) => {
+    const mailOptions = {
+        from: `"EaseMessage" <${process.env.SMTP_EMAIL}>`,
+        to: adminEmail,
+        subject: `Enterprise plan request from ${workspaceName || requesterName || 'EaseMessage workspace'}`,
+        html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+                <div style="background: linear-gradient(135deg, #0f766e, #2563eb); padding: 32px 24px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">EaseMessage</h1>
+                    <p style="color: rgba(255,255,255,0.88); margin: 8px 0 0; font-size: 14px;">Enterprise plan request</p>
+                </div>
+                <div style="padding: 32px 24px; color: #111827;">
+                    <p style="margin: 0 0 16px; font-size: 15px;">A workspace has requested the Enterprise plan.</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <tr><td style="padding: 8px 0; color: #6b7280;">Requester</td><td style="padding: 8px 0; font-weight: 600;">${requesterName || 'Unknown user'}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0; font-weight: 600;">${requesterEmail || 'Not available'}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6b7280;">Workspace</td><td style="padding: 8px 0; font-weight: 600;">${workspaceName || 'Not available'}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6b7280;">Company</td><td style="padding: 8px 0; font-weight: 600;">${companyName || 'Not provided'}</td></tr>
+                    </table>
+                    ${note ? `<div style="margin-top: 20px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #f9fafb;"><p style="margin: 0 0 8px; font-size: 13px; color: #6b7280;">Requester note</p><p style="margin: 0; white-space: pre-wrap; font-size: 14px;">${note}</p></div>` : ''}
+                </div>
+                <div style="background: #f9fafb; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} EaseMessage. All rights reserved.</p>
+                </div>
+            </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendOTP, sendWorkspaceInvite, sendBillingReminderEmail, sendEnterprisePlanRequest };

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const { requireBillingWriteAccess } = require('../middleware/billing');
 const campaignController = require('../controllers/campaignController');
 
 // @route   GET api/campaigns
@@ -11,7 +12,7 @@ router.get('/', auth, campaignController.getCampaigns);
 // @route   POST api/campaigns
 // @desc    Create a new campaign
 // @access  Private
-router.post('/', auth, campaignController.createCampaign);
+router.post('/', [auth, requireBillingWriteAccess], campaignController.createCampaign);
 
 // @route   GET api/campaigns/templates/:phoneNumberId
 // @desc    Get verified templates for a phone number
@@ -21,7 +22,7 @@ router.get('/templates/:phoneNumberId', auth, campaignController.getVerifiedTemp
 // @route   POST api/campaigns/:id/start
 // @desc    Start executing a campaign (queues for async processing)
 // @access  Private
-router.post('/:id/start', auth, campaignController.startCampaign);
+router.post('/:id/start', [auth, requireBillingWriteAccess], campaignController.startCampaign);
 
 // @route   POST api/campaigns/:id/pause
 // @desc    Pause a running campaign
@@ -31,7 +32,7 @@ router.post('/:id/pause', auth, campaignController.pauseCampaign);
 // @route   POST api/campaigns/:id/resume
 // @desc    Resume a paused campaign
 // @access  Private
-router.post('/:id/resume', auth, campaignController.resumeCampaign);
+router.post('/:id/resume', [auth, requireBillingWriteAccess], campaignController.resumeCampaign);
 
 // @route   POST api/campaigns/:id/cancel
 // @desc    Cancel a running/paused/queued campaign
@@ -51,11 +52,11 @@ router.get('/:id', auth, campaignController.getCampaign);
 // @route   PUT api/campaigns/:id
 // @desc    Update a campaign (draft/scheduled only)
 // @access  Private
-router.put('/:id', auth, campaignController.updateCampaign);
+router.put('/:id', [auth, requireBillingWriteAccess], campaignController.updateCampaign);
 
 // @route   DELETE api/campaigns/:id
 // @desc    Delete a campaign (draft/scheduled only)
 // @access  Private
-router.delete('/:id', auth, campaignController.deleteCampaign);
+router.delete('/:id', [auth, requireBillingWriteAccess], campaignController.deleteCampaign);
 
 module.exports = router;

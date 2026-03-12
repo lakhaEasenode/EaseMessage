@@ -1,29 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const { requireBillingWriteAccess } = require('../middleware/billing');
 const Contact = require('../models/Contact');
 const List = require('../models/List');
-const User = require('../models/User');
 const multer = require('multer');
 const csv = require('csv-parser');
 const stream = require('stream');
+const { ensureWorkspaceBilling } = require('../services/billingService');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // @route   POST api/contacts/upload
 // @desc    Upload CSV and bulk create contacts
 // @access  Private
-router.post('/upload', [auth, upload.single('file')], async (req, res) => {
+router.post('/upload', [auth, requireBillingWriteAccess, upload.single('file')], async (req, res) => {
     const scopeUserId = req.scopeUserId || req.user.id;
     if (!req.file) {
-        console.log('Upload attempted but no file found in req.file');
         return res.status(400).json({ msg: 'No file uploaded' });
     }
-    console.log('File received:', req.file.originalname, req.file.mimetype, req.file.size);
 
     try {
-        const userDoc = await User.findById(scopeUserId);
-        const limit = userDoc?.subscription?.contactLimit || 100;
+        const billing = req.workspaceBilling || await ensureWorkspaceBilling(req.workspace);
+        const limit = billing?.contactLimit || 100;
         const currentCount = await Contact.countDocuments({ userId: scopeUserId, isDeleted: false });
 
         // We will check the limit again after parsing csv length
@@ -39,7 +38,6 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
     try {
         if (req.body.listIds) {
             listIds = JSON.parse(req.body.listIds);
-            console.log('Assigning to lists:', listIds);
         }
     } catch (e) {
         console.error('Error parsing listIds:', e);
@@ -59,12 +57,8 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
 
     bufferStream
         .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
-        .on('headers', (headers) => console.log('Parsed Headers:', headers))
         .on('data', (data) => results.push(data))
         .on('end', async () => {
-            console.log(`Parsed ${results.length} rows`);
-            if (results.length > 0) console.log('Sample Row:', results[0]);
-
             if (req.currentContactCount + results.length > req.userLimit) {
                 return res.status(403).json({ msg: `Upload would exceed your contact limit of ${req.userLimit}. You currently have ${req.currentContactCount} contacts. Please upgrade your plan.` });
             }
@@ -128,7 +122,6 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
                                 $inc: { contactCount: newContactIds.length }
                             }
                         );
-                        console.log(`Updated ${listIds.length} lists with ${newContactIds.length} new contacts`);
                     }
                 }
 
@@ -205,7 +198,7 @@ router.get('/:id', auth, async (req, res) => {
 // @route   POST api/contacts
 // @desc    Create a new contact
 // @access  Private
-router.post('/', auth, async (req, res) => {
+router.post('/', [auth, requireBillingWriteAccess], async (req, res) => {
     const { firstName, lastName, countryCode, phoneNumber, email, companyName, sheetName, tags, optedIn, listIds } = req.body;
 
     try {
@@ -218,8 +211,8 @@ router.post('/', auth, async (req, res) => {
             return res.status(400).json({ msg: 'Contact must opt-in to receive messages' });
         }
 
-        const userDoc = await User.findById(scopeUserId);
-        const limit = userDoc?.subscription?.contactLimit || 100;
+        const billing = req.workspaceBilling || await ensureWorkspaceBilling(req.workspace);
+        const limit = billing?.contactLimit || 100;
         const currentCount = await Contact.countDocuments({ userId: scopeUserId, isDeleted: false });
 
         if (currentCount >= limit) {

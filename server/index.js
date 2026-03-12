@@ -3,6 +3,7 @@ const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+dotenv.config();
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const { initSocket } = require('./socket');
 const bcrypt = require('bcryptjs');
@@ -17,14 +18,13 @@ const Workspace = require('./models/Workspace');
 const WorkspaceMember = require('./models/WorkspaceMember');
 const { backfillExistingUsersWithWorkspace } = require('./utils/workspace');
 
-dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Init Middleware
 // We need raw body matching for Stripe Webhook specifically to verify signatures
-app.use('/api/payments/webhook/stripe', express.raw({ type: 'application/json' }));
+app.use('/api/billing/webhooks/stripe', express.raw({ type: 'application/json' }));
+app.use('/api/billing/webhooks/razorpay', express.raw({ type: 'application/json' }));
 app.use(express.json({ extended: false }));
 app.use(cors());
 
@@ -39,6 +39,13 @@ require('./models/List');
 require('./models/Message');
 require('./models/Template');
 require('./models/Campaign');
+require('./models/Workspace');
+require('./models/WorkspaceMember');
+require('./models/WorkspaceInvite');
+require('./models/WorkspaceBilling');
+require('./models/BillingInvoice');
+require('./models/BillingPlan');
+require('./models/IndiaBillingIntent');
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/contacts', require('./routes/contacts'));
@@ -52,6 +59,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/workspaces', require('./routes/workspaces'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/billing', require('./routes/billing'));
 
 const seedData = async () => {
   try {
@@ -227,6 +235,9 @@ const startServer = async () => {
 
     await seedData();
     await backfillExistingUsersWithWorkspace();
+    const { backfillWorkspaceBillingFromUsers, syncBillingPlansToStripe } = require('./services/billingService');
+    await backfillWorkspaceBillingFromUsers();
+    await syncBillingPlansToStripe();
 
     // Initialize Redis and campaign workers
     let workersStarted = false;

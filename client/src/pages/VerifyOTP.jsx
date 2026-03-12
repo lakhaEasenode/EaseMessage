@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { MessageSquare, CheckCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import BrandLogo from '../components/BrandLogo';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
@@ -126,9 +127,7 @@ const VerifyOTP = () => {
             <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
                 <div className="text-center">
                     <div className="flex justify-center mb-4">
-                        <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center text-white font-bold">
-                            <MessageSquare size={24} />
-                        </div>
+                        <BrandLogo compact />
                     </div>
                     <h2 className="mt-2 text-2xl font-extrabold text-gray-900">
                         Verify your email

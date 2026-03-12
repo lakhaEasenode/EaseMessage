@@ -1,30 +1,31 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import axios from 'axios';
+import { getCountryName } from '../data/countries';
+import EnterpriseRequestModal from '../components/EnterpriseRequestModal';
 
 const Pricing = () => {
-    const { user, token } = useContext(AuthContext);
+    const { user, token, loadUser } = useContext(AuthContext);
     const [billingCycle, setBillingCycle] = useState('monthly');
-    const [country, setCountry] = useState('US'); // 'IN' for Razorpay, others for Stripe
     const [loadingPlan, setLoadingPlan] = useState(null);
-
-    // Dynamically load Razorpay script
-    useEffect(() => {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        document.body.appendChild(script);
-        return () => {
-            document.body.removeChild(script);
-        };
-    }, []);
+    const [plans, setPlans] = useState([]);
+    const [enterpriseModalOpen, setEnterpriseModalOpen] = useState(false);
+    const [enterpriseLoading, setEnterpriseLoading] = useState(false);
+    const currentBilling = user?.currentWorkspace?.billing || user?.billing;
+    const currentPlan = currentBilling?.plan || 'Free';
+    const currentCredits = currentBilling?.contactLimit ?? 100;
+    const workspaceCountry = user?.currentWorkspace?.countryCode || 'IN';
+    const isINRWorkspace = workspaceCountry === 'IN';
+    const workspaceName = user?.currentWorkspace?.name || 'this workspace';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
     useEffect(() => {
         // Look for Stripe success/canceled return URLs
         const query = new URLSearchParams(window.location.search);
         if (query.get('success')) {
             alert('Subscription successful! You will receive an email confirmation.');
+            loadUser();
             // Remove query params
             window.history.replaceState(null, '', window.location.pathname);
         }
@@ -32,47 +33,45 @@ const Pricing = () => {
             alert('Checkout canceled. Your subscription was not processed.');
             window.history.replaceState(null, '', window.location.pathname);
         }
-    }, []);
+    }, [loadUser]);
 
-    const plans = [
-        {
-            name: 'Free',
-            priceINR: { monthly: 0, yearly: 0 },
-            priceUSD: { monthly: 0, yearly: 0 },
-            stripePriceId: { monthly: 'price_free_monthly', yearly: 'price_free_yearly' },
-            razorpayPlanId: { monthly: 'plan_free_monthly', yearly: 'plan_free_yearly' },
-            contactLimit: 100,
-            features: ['Up to 100 contacts', 'Basic messaging', 'Standard support'],
-        },
-        {
-            name: 'Starter',
-            priceINR: { monthly: 2900, yearly: 29000 },
-            priceUSD: { monthly: 29, yearly: 290 },
-            stripePriceId: { monthly: 'price_starter_monthly_usd', yearly: 'price_starter_yearly_usd' },
-            razorpayPlanId: { monthly: 'plan_starter_monthly_inr', yearly: 'plan_starter_yearly_inr' },
-            contactLimit: 1000,
-            features: ['Up to 1,000 contacts', 'Advanced messaging', 'Priority support'],
-        },
-        {
-            name: 'Growth',
-            priceINR: { monthly: 4900, yearly: 49000 },
-            priceUSD: { monthly: 49, yearly: 490 },
-            stripePriceId: { monthly: 'price_growth_monthly_usd', yearly: 'price_growth_yearly_usd' },
-            razorpayPlanId: { monthly: 'plan_growth_monthly_inr', yearly: 'plan_growth_yearly_inr' },
-            contactLimit: 20000,
-            features: ['Up to 20,000 contacts', 'Custom templates', 'Dedicated account manager'],
-            popular: true,
-        },
-        {
-            name: 'Pro',
-            priceINR: { monthly: 12900, yearly: 129000 },
-            priceUSD: { monthly: 129, yearly: 1290 },
-            stripePriceId: { monthly: 'price_pro_monthly_usd', yearly: 'price_pro_yearly_usd' },
-            razorpayPlanId: { monthly: 'plan_pro_monthly_inr', yearly: 'plan_pro_yearly_inr' },
-            contactLimit: 100000,
-            features: ['Up to 100,000 contacts', 'API access', '24/7 Phone support'],
+    useEffect(() => {
+        if (!token) return;
+
+        const fetchPlans = async () => {
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/billing/plans`, {
+                    headers: { 'x-auth-token': token }
+                });
+                setPlans(res.data?.plans || []);
+            } catch (err) {
+                console.error('Failed to load billing plans', err);
+            }
+        };
+
+        fetchPlans();
+    }, [token]);
+
+    const handleEnterpriseRequest = async (note) => {
+        if (!token) {
+            alert('Please login to continue');
+            return false;
         }
-    ];
+
+        setEnterpriseLoading(true);
+        try {
+            await axios.post(`${apiUrl}/billing/enterprise-request`, { note }, {
+                headers: { 'x-auth-token': token }
+            });
+            alert('Enterprise request sent. Our team will contact you.');
+            return true;
+        } catch (err) {
+            alert(err.response?.data?.msg || 'Failed to send enterprise request. Please try again.');
+            return false;
+        } finally {
+            setEnterpriseLoading(false);
+        }
+    };
 
     const handleSubscribe = async (plan) => {
         if (!user) {
@@ -94,44 +93,28 @@ const Pricing = () => {
         };
 
         try {
-            if (country === 'IN') {
-                // Razorpay Flow
-                const planId = plan.razorpayPlanId[billingCycle];
-                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/payments/checkout/razorpay`, { planId, planName: plan.name }, config);
-                
-                const { subscriptionId, keyId } = res.data;
-
-                const options = {
-                    key: keyId,
-                    subscription_id: subscriptionId,
-                    name: "EaseMessage",
-                    description: `${plan.name} Plan (${billingCycle})`,
-                    handler: function (response) {
-                        alert(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
-                        // Webhook will handle DB update, but we could reload user here
-                    },
-                    prefill: {
-                        name: user.name || user.firstName,
-                        email: user.email,
-                    },
-                    theme: {
-                        color: "#4f46e5",
-                    },
-                };
-
-                const rzp1 = new window.Razorpay(options);
-                rzp1.open();
+            if (isINRWorkspace && currentBilling?.stripeSubscriptionId) {
+                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/billing/india/change-plan`, { planName: plan.name, billingCycle }, config);
+                await loadUser();
+                if (res.data?.paymentUrl) {
+                    window.open(res.data.paymentUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                    alert('Plan updated. No immediate payment is due right now.');
+                }
             } else {
-                // Stripe Flow
-                const priceId = plan.stripePriceId[billingCycle];
-                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/payments/checkout/stripe`, { priceId, planName: plan.name }, config);
-                
-                // Redirect to Stripe Checkout
-                window.location.href = res.data.url;
+                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/billing/checkout/stripe-subscription`, { planName: plan.name, billingCycle }, config);
+                if (res.data?.url) {
+                    window.location.href = res.data.url;
+                } else if (res.data?.paymentUrl) {
+                    await loadUser();
+                    window.open(res.data.paymentUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                    await loadUser();
+                }
             }
         } catch (err) {
             console.error('Subscription error:', err);
-            alert('Failed to initiate subscription checkout. Please try again.');
+            alert(err.response?.data?.msg || 'Failed to initiate subscription checkout. Please try again.');
         } finally {
             setLoadingPlan(null);
         }
@@ -145,6 +128,15 @@ const Pricing = () => {
                     <p className="mt-2 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
                         Pricing plans for teams of all sizes
                     </p>
+                    <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-3 text-sm">
+                        <span className="font-semibold text-indigo-700">
+                            Current plan: {currentPlan}
+                        </span>
+                        <span className="hidden sm:inline text-indigo-300">|</span>
+                        <span className="font-medium text-gray-700">
+                            Credits: {currentCredits.toLocaleString()}
+                        </span>
+                    </div>
                 </div>
                 
                 {/* Billing Cycle Toggle */}
@@ -167,60 +159,80 @@ const Pricing = () => {
                     </div>
                 </div>
 
-                {/* Country Toggle for Testing/Demo */}
-                <div className="mt-6 flex justify-center items-center gap-x-3">
-                    <span className="text-sm text-gray-500">Billing Country:</span>
-                    <select 
-                        value={country} 
-                        onChange={(e) => setCountry(e.target.value)}
-                        className="rounded-md border-gray-300 py-1.5 pl-3 pr-10 text-gray-900 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                    >
-                        <option value="US">United States (USD - Stripe)</option>
-                        <option value="IN">India (INR - Razorpay)</option>
-                        <option value="UK">United Kingdom (USD - Stripe)</option>
-                    </select>
+                <div className="mt-6 flex justify-center">
+                    <div className="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
+                        <span className="text-sm text-gray-500">Workspace country:</span>
+                        <span className="text-sm font-semibold text-gray-900">{getCountryName(workspaceCountry)}</span>
+                        <span className="hidden sm:inline text-gray-300">|</span>
+                        <span className="text-sm font-semibold text-indigo-700">
+                            Billing currency: {isINRWorkspace ? 'INR' : 'USD'}
+                        </span>
+                    </div>
                 </div>
+
+                {isINRWorkspace && (
+                    <div className="mt-6 flex justify-center">
+                        <div className="max-w-3xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                            India workspaces use Stripe for subscription management and Razorpay payment links for invoice collection. Upgrades create a prorated invoice and payment link when money is due.
+                        </div>
+                    </div>
+                )}
 
                 <div className="isolate mx-auto mt-10 grid max-w-md grid-cols-1 gap-8 md:max-w-7xl md:grid-cols-4">
                     {plans.map((plan) => {
-                        const isINR = country === 'IN';
+                        const isINR = isINRWorkspace;
                         const currencySymbol = isINR ? '₹' : '$';
-                        const price = isINR ? plan.priceINR[billingCycle] : plan.priceUSD[billingCycle];
+                        const price = isINR ? plan.prices?.inr?.[billingCycle]?.amount : plan.prices?.usd?.[billingCycle]?.amount;
+                        const isEnterprise = plan.name === 'Enterprise';
                         
                         return (
                             <div
                                 key={plan.name}
-                                className={`rounded-3xl p-8 ring-1 xl:p-10 ${plan.popular ? 'bg-gray-900 ring-gray-900' : 'ring-gray-200'}`}
+                                className={`rounded-3xl p-8 ring-1 xl:p-10 ${plan.key === 'Growth' ? 'bg-gray-900 ring-gray-900' : 'ring-gray-200'}`}
                             >
-                                <h3 id={plan.name} className={`text-lg font-semibold leading-8 ${plan.popular ? 'text-white' : 'text-gray-900'}`}>
+                                <h3 id={plan.name} className={`text-lg font-semibold leading-8 ${plan.key === 'Growth' ? 'text-white' : 'text-gray-900'}`}>
                                     {plan.name}
                                 </h3>
-                                <p className="mt-4 text-sm leading-6 text-gray-500">
+                                <p className={`mt-4 text-sm leading-6 ${plan.key === 'Growth' ? 'text-gray-300' : 'text-gray-500'}`}>
                                     Ideal for up to {plan.contactLimit.toLocaleString()} contacts.
                                 </p>
                                 <p className="mt-6 flex items-baseline gap-x-1">
-                                    <span className={`text-4xl font-bold tracking-tight ${plan.popular ? 'text-white' : 'text-gray-900'}`}>
+                                    <span className={`text-4xl font-bold tracking-tight ${plan.key === 'Growth' ? 'text-white' : 'text-gray-900'}`}>
                                         {currencySymbol}{price}
                                     </span>
-                                    <span className={`text-sm font-semibold leading-6 ${plan.popular ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <span className={`text-sm font-semibold leading-6 ${plan.key === 'Growth' ? 'text-gray-300' : 'text-gray-600'}`}>
                                         /{billingCycle === 'monthly' ? 'mo' : 'yr'}
                                     </span>
                                 </p>
-                                <button
-                                    onClick={() => handleSubscribe(plan)}
-                                    disabled={loadingPlan === plan.name || (user?.subscription?.plan === plan.name)}
-                                    className={`mt-6 block w-full rounded-md px-3 py-2 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                                        plan.popular
-                                            ? 'bg-white text-gray-900 hover:bg-gray-100 focus-visible:outline-white'
-                                            : 'bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:outline-indigo-600'
-                                    } ${user?.subscription?.plan === plan.name ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    {loadingPlan === plan.name ? 'Processing...' : user?.subscription?.plan === plan.name ? 'Current Plan' : (plan.name === 'Free' ? 'Get Started' : 'Subscribe')}
-                                </button>
-                                <ul role="list" className={`mt-8 space-y-3 text-sm leading-6 ${plan.popular ? 'text-gray-300' : 'text-gray-600'}`}>
+                                {isEnterprise ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setEnterpriseModalOpen(true)}
+                                        className={`mt-6 block w-full rounded-md px-3 py-2 text-center text-sm font-semibold leading-6 ${
+                                            plan.key === 'Growth'
+                                                ? 'bg-white text-gray-900 hover:bg-gray-100'
+                                                : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                                        }`}
+                                    >
+                                        Contact Us
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleSubscribe(plan)}
+                                        disabled={loadingPlan === plan.name || currentPlan === plan.name}
+                                        className={`mt-6 block w-full rounded-md px-3 py-2 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                                            plan.key === 'Growth'
+                                                ? 'bg-white text-gray-900 hover:bg-gray-100 focus-visible:outline-white'
+                                                : 'bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:outline-indigo-600'
+                                        } ${currentPlan === plan.name ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        {loadingPlan === plan.name ? 'Processing...' : currentPlan === plan.name ? 'Current Plan' : (plan.name === 'Free' ? 'Get Started' : currentPlan === 'Free' ? 'Buy Plan' : 'Upgrade Plan')}
+                                    </button>
+                                )}
+                                <ul role="list" className={`mt-8 space-y-3 text-sm leading-6 ${plan.key === 'Growth' ? 'text-gray-300' : 'text-gray-600'}`}>
                                     {plan.features.map((feature) => (
                                         <li key={feature} className="flex gap-x-3">
-                                            <Check className={`h-6 w-5 flex-none ${plan.popular ? 'text-indigo-400' : 'text-indigo-600'}`} aria-hidden="true" />
+                                            <Check className={`h-6 w-5 flex-none ${plan.key === 'Growth' ? 'text-indigo-400' : 'text-indigo-600'}`} aria-hidden="true" />
                                             {feature}
                                         </li>
                                     ))}
@@ -239,15 +251,24 @@ const Pricing = () => {
                         </p>
                     </div>
                     <div className="mt-10 lg:ml-8 lg:mt-0 flex-shrink-0">
-                        <a
-                            href="mailto:lakhendra@easexpense.com"
+                        <button
+                            type="button"
+                            onClick={() => setEnterpriseModalOpen(true)}
                             className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-5 py-3 text-base font-medium text-white hover:bg-indigo-700"
                         >
                             Contact Us
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
+
+            <EnterpriseRequestModal
+                isOpen={enterpriseModalOpen}
+                onClose={() => setEnterpriseModalOpen(false)}
+                onSubmit={handleEnterpriseRequest}
+                loading={enterpriseLoading}
+                workspaceName={workspaceName}
+            />
         </div>
     );
 };
