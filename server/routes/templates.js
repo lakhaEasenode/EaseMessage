@@ -144,16 +144,20 @@ router.get('/sync', auth, async (req, res) => {
 // @desc    Create a new template via Facebook Graph API
 // @access  Private
 router.post('/', auth, async (req, res) => {
-    const { name, category, language, body, components } = req.body;
+    const { name, category, language, body, components, wabaId } = req.body;
 
     if (!name || !category || !body) {
         return res.status(400).json({ msg: 'Please provide all required fields' });
     }
 
     try {
-        const scopeUserId = req.scopeUserId || req.user.id;
-        // 1. Get User's Connected WABA
-        const wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: scopeUserId });
+        // 1. Get User's Connected WABA — use specific wabaId if provided
+        let wabaAccount;
+        if (wabaId) {
+            wabaAccount = await WhatsAppBusinessAccount.findOne({ _id: wabaId, userId: req.user.id });
+        } else {
+            wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: req.user.id });
+        }
         if (!wabaAccount || !wabaAccount.accessToken) {
             return res.status(400).json({ msg: 'No connected WhatsApp Business Account found. Please connect one first.' });
         }
@@ -169,9 +173,18 @@ router.post('/', auth, async (req, res) => {
         }
 
         // 3. Construct Graph API Payload using components from the client
-        const graphComponents = components && components.length > 0
-            ? components
+        let graphComponents = components && components.length > 0
+            ? JSON.parse(JSON.stringify(components)) // deep clone
             : [{ type: "BODY", text: body }];
+
+        // 4. Handle media headers — client already uploaded to Meta and has the handle
+        const MEDIA_FORMATS = ['IMAGE', 'VIDEO', 'DOCUMENT'];
+        for (const comp of graphComponents) {
+            if (comp.type === 'HEADER' && MEDIA_FORMATS.includes(comp.format) && comp.headerHandle) {
+                comp.example = { header_handle: [comp.headerHandle] };
+                delete comp.headerHandle;
+            }
+        }
 
         const graphPayload = {
             name: name,
@@ -180,7 +193,7 @@ router.post('/', auth, async (req, res) => {
             components: graphComponents
         };
 
-        // 4. Call Facebook Graph API
+        // 5. Call Facebook Graph API
         const response = await axios.post(
             `https://graph.facebook.com/v24.0/${wabaAccount.wabaId}/message_templates`,
             graphPayload,
@@ -194,7 +207,7 @@ router.post('/', auth, async (req, res) => {
 
         const fbData = response.data; // { id: "...", status: "...", category: "..." }
 
-        // 5. Save to Database (store the components array)
+        // 6. Save to Database
         const newTemplate = new Template({
             userId: scopeUserId,
             wabaId: wabaAccount._id,

@@ -75,16 +75,12 @@ const Templates = () => {
     }, []);
 
     const handleCreate = async (data) => {
-        try {
-            const config = { headers: { 'x-auth-token': token } };
-            await axios.post(`${API_URL}/templates`, data, config);
-            setIsFormOpen(false);
-            setEditingTemplate(null);
-            fetchTemplates();
-        } catch (err) {
-            console.error('Create error:', err);
-            alert('Failed to create template');
-        }
+        const config = { headers: { 'x-auth-token': token } };
+        const res = await axios.post(`${API_URL}/templates`, data, config);
+        setIsFormOpen(false);
+        setEditingTemplate(null);
+        fetchTemplates();
+        return res;
     };
 
     const handleSync = async () => {

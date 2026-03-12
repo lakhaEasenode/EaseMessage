@@ -28,6 +28,8 @@ app.use('/api/payments/webhook/stripe', express.raw({ type: 'application/json' }
 app.use(express.json({ extended: false }));
 app.use(cors());
 
+const { apiLimiter, authLimiter, uploadLimiter } = require('./middleware/rateLimiter');
+
 // Register Models explicitly
 require('./models/User');
 require('./models/WhatsAppBusinessAccount');
@@ -37,10 +39,6 @@ require('./models/List');
 require('./models/Message');
 require('./models/Template');
 require('./models/Campaign');
-require('./models/Workspace');
-require('./models/WorkspaceMember');
-require('./models/WorkspaceInvite');
-
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/contacts', require('./routes/contacts'));
@@ -53,6 +51,7 @@ app.use('/api/messages', require('./routes/messages'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/workspaces', require('./routes/workspaces'));
+app.use('/api/upload', require('./routes/upload'));
 
 const seedData = async () => {
   try {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus, Search, User, ChevronDown, Globe, PhoneCall, Trash2, ExternalLink } from 'lucide-react';
+import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus, Search, User, ChevronDown, Globe, PhoneCall, Trash2, ExternalLink, Upload, FileText, Image, Film, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 // Contact attribute definitions derived from the Contact data model
 const CONTACT_ATTRIBUTES = [
@@ -36,12 +37,19 @@ const ToggleSwitch = ({ enabled, onChange, disabled }) => (
     </button>
 );
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
+
 const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('MARKETING');
     const [language, setLanguage] = useState('en_US');
     const [body, setBody] = useState('');
     const [previewBody, setPreviewBody] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState('');
+
+    // WABA selection
+    const [selectedWabaId, setSelectedWabaId] = useState('');
 
     // Section toggles
     const [showHeader, setShowHeader] = useState(false);
@@ -50,6 +58,14 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const [footerText, setFooterText] = useState('');
     const [showButtons, setShowButtons] = useState(false);
     const [buttonType, setButtonType] = useState('call_to_action');
+
+    // Body media attachment (renders as HEADER component in API)
+    const [bodyMediaFormat, setBodyMediaFormat] = useState(''); // '', 'IMAGE', 'VIDEO', 'DOCUMENT'
+    const [bodyMediaFile, setBodyMediaFile] = useState(null); // { handle, fileName, fileSize, mediaType }
+    const [bodyMediaPreviewUrl, setBodyMediaPreviewUrl] = useState('');
+    const [bodyMediaUploading, setBodyMediaUploading] = useState(false);
+    const [bodyMediaError, setBodyMediaError] = useState('');
+    const bodyMediaFileRef = useRef(null);
 
     // CTA buttons state (max 2)
     const [ctaButtons, setCtaButtons] = useState([
@@ -68,6 +84,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const attrDropdownRef = useRef(null);
 
     const bodyRef = useRef(null);
+    const cursorPosRef = useRef({ start: 0, end: 0 });
 
     useEffect(() => {
         if (initialData) {
@@ -75,8 +92,54 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
             setCategory(initialData.category);
             setLanguage(initialData.language);
             setBody(initialData.body);
+            if (initialData.wabaId?._id) {
+                setSelectedWabaId(initialData.wabaId._id);
+            }
+            // Restore header/footer/buttons from existing components
+            if (initialData.components && Array.isArray(initialData.components)) {
+                const headerComp = initialData.components.find(c => c.type === 'HEADER');
+                if (headerComp) {
+                    if (headerComp.format === 'TEXT') {
+                        setShowHeader(true);
+                        setHeaderText(headerComp.text || '');
+                    } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format)) {
+                        // Media was stored as header in API — show it in body media section
+                        setBodyMediaFormat(headerComp.format);
+                    }
+                }
+                const footerComp = initialData.components.find(c => c.type === 'FOOTER');
+                if (footerComp) {
+                    setShowFooter(true);
+                    setFooterText(footerComp.text || '');
+                }
+                const buttonsComp = initialData.components.find(c => c.type === 'BUTTONS');
+                if (buttonsComp && buttonsComp.buttons?.length > 0) {
+                    setShowButtons(true);
+                    const firstBtn = buttonsComp.buttons[0];
+                    if (firstBtn.type === 'QUICK_REPLY') {
+                        setButtonType('quick_reply');
+                        setQuickReplyButtons(buttonsComp.buttons.map(b => ({ text: b.text || '' })));
+                    } else {
+                        setButtonType('call_to_action');
+                        setCtaButtons(buttonsComp.buttons.map(b => ({
+                            actionType: b.type === 'PHONE_NUMBER' ? 'call_phone' : 'visit_website',
+                            text: b.text || '',
+                            urlType: 'static',
+                            url: b.url || '',
+                            phoneNumber: b.phone_number || ''
+                        })));
+                    }
+                }
+            }
         }
     }, [initialData]);
+
+    // Auto-select first WABA if none selected
+    useEffect(() => {
+        if (!selectedWabaId && wabaAccounts.length > 0) {
+            setSelectedWabaId(wabaAccounts[0]._id);
+        }
+    }, [wabaAccounts, selectedWabaId]);
 
     useEffect(() => {
         setPreviewBody(body);
@@ -96,8 +159,14 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const buildComponents = () => {
         const components = [];
 
-        // HEADER component
-        if (showHeader && headerText.trim()) {
+        // HEADER component — media takes priority over text header (API allows only one HEADER)
+        if (bodyMediaFormat && bodyMediaFile) {
+            components.push({
+                type: 'HEADER',
+                format: bodyMediaFormat,
+                headerHandle: bodyMediaFile.handle,
+            });
+        } else if (showHeader && headerText.trim()) {
             components.push({
                 type: 'HEADER',
                 format: 'TEXT',
@@ -139,23 +208,14 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                         };
                     });
                 if (buttons.length > 0) {
-                    components.push({
-                        type: 'BUTTONS',
-                        buttons
-                    });
+                    components.push({ type: 'BUTTONS', buttons });
                 }
             } else if (buttonType === 'quick_reply') {
                 const buttons = quickReplyButtons
                     .filter(btn => btn.text.trim())
-                    .map(btn => ({
-                        type: 'QUICK_REPLY',
-                        text: btn.text.trim()
-                    }));
+                    .map(btn => ({ type: 'QUICK_REPLY', text: btn.text.trim() }));
                 if (buttons.length > 0) {
-                    components.push({
-                        type: 'BUTTONS',
-                        buttons
-                    });
+                    components.push({ type: 'BUTTONS', buttons });
                 }
             }
         }
@@ -163,17 +223,32 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         return components;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const components = buildComponents();
-        onSubmit({ name, category, language, body, components });
+        setSubmitError('');
+        setSubmitting(true);
+        try {
+            const components = buildComponents();
+            await onSubmit({ name, category, language, body, components, wabaId: selectedWabaId });
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.message || 'Failed to create template. Please try again.';
+            setSubmitError(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const saveCursorPosition = () => {
+        const textarea = bodyRef.current;
+        if (textarea) {
+            cursorPosRef.current = { start: textarea.selectionStart, end: textarea.selectionEnd };
+        }
     };
 
     const insertAtCursor = (before, after = '') => {
         const textarea = bodyRef.current;
         if (!textarea) return;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+        const { start, end } = cursorPosRef.current;
         const selected = body.substring(start, end);
         const newText = body.substring(0, start) + before + selected + after + body.substring(end);
         setBody(newText);
@@ -181,12 +256,8 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
             textarea.focus();
             const cursorPos = start + before.length + selected.length + after.length;
             textarea.setSelectionRange(cursorPos, cursorPos);
+            cursorPosRef.current = { start: cursorPos, end: cursorPos };
         }, 0);
-    };
-
-    const addVariable = () => {
-        const count = (body.match(/{{(\d+)}}/g) || []).length + 1;
-        insertAtCursor(`{{${count}}}`);
     };
 
     const openVariablePanel = () => {
@@ -203,6 +274,81 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         insertAtCursor(`{{${count}}}`);
         setShowVariablePanel(false);
     };
+
+    const handleEmojiClick = () => {
+        const textarea = bodyRef.current;
+        if (!textarea) return;
+        textarea.focus();
+        const { start, end } = cursorPosRef.current;
+        textarea.setSelectionRange(start, end);
+        if (typeof textarea.showPicker === 'function') {
+            try { textarea.showPicker(); } catch { /* silently fail */ }
+        }
+    };
+
+    // Body media upload handler
+    const MEDIA_ACCEPT = {
+        IMAGE: 'image/jpeg,image/png',
+        VIDEO: 'video/mp4',
+        DOCUMENT: 'application/pdf',
+    };
+
+    const handleBodyMediaUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setBodyMediaError('');
+        setBodyMediaUploading(true);
+        const blobUrl = URL.createObjectURL(file);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        if (selectedWabaId) formData.append('wabaId', selectedWabaId);
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.post(
+                `${API_URL}/upload/media-handle`,
+                formData,
+                {
+                    headers: {
+                        'x-auth-token': token,
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+            setBodyMediaFile(res.data);
+            setBodyMediaPreviewUrl(blobUrl);
+        } catch (err) {
+            URL.revokeObjectURL(blobUrl);
+            const msg = err.response?.data?.msg || 'Upload failed. Please try again.';
+            setBodyMediaError(msg);
+        } finally {
+            setBodyMediaUploading(false);
+            if (bodyMediaFileRef.current) bodyMediaFileRef.current.value = '';
+        }
+    };
+
+    const removeBodyMedia = () => {
+        if (bodyMediaPreviewUrl) URL.revokeObjectURL(bodyMediaPreviewUrl);
+        setBodyMediaFile(null);
+        setBodyMediaPreviewUrl('');
+        setBodyMediaFormat('');
+        setBodyMediaError('');
+    };
+
+    const [showMediaPicker, setShowMediaPicker] = useState(false);
+    const mediaPickerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (mediaPickerRef.current && !mediaPickerRef.current.contains(e.target)) {
+                setShowMediaPicker(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const filteredAttributes = CONTACT_ATTRIBUTES.filter(attr =>
         attr.label.toLowerCase().includes(variableSearch.toLowerCase())
@@ -242,7 +388,8 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
 
     const isEdit = !!initialData;
     const isApproved = initialData?.status === 'APPROVED';
-    const wabaName = initialData?.wabaId?.name || wabaAccounts[0]?.name || 'WhatsApp Business';
+    const selectedWaba = wabaAccounts.find(w => w._id === selectedWabaId);
+    const wabaName = selectedWaba?.name || wabaAccounts[0]?.name || 'WhatsApp Business';
     const wabaInitial = wabaName.charAt(0).toUpperCase();
 
     return (
@@ -271,7 +418,35 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                             </div>
                         )}
 
+                        {submitError && (
+                            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl text-sm mb-6 flex gap-3">
+                                <Info className="shrink-0 mt-0.5" size={16} />
+                                <div>
+                                    <span className="font-bold block mb-1">Template Creation Failed</span>
+                                    {submitError}
+                                </div>
+                            </div>
+                        )}
+
                         <form id="templateForm" onSubmit={handleSubmit} className="space-y-5">
+                            {/* WABA Account Selector */}
+                            {wabaAccounts.length > 0 && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">WhatsApp Business Account</label>
+                                    <select
+                                        value={selectedWabaId}
+                                        onChange={e => setSelectedWabaId(e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm bg-white"
+                                        disabled={isApproved}
+                                        required
+                                    >
+                                        {wabaAccounts.map(waba => (
+                                            <option key={waba._id} value={waba._id}>{waba.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             {/* Template Name */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Template Name</label>
@@ -316,31 +491,37 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                         <option value="en_US">English (US)</option>
                                         <option value="es_ES">Spanish</option>
                                         <option value="pt_BR">Portuguese (BR)</option>
+                                        <option value="hi">Hindi</option>
                                     </select>
                                 </div>
                             </div>
 
-                            {/* ── Header Section ── */}
+                            {/* Header Section — text only */}
                             <div className="rounded-xl border border-gray-200 overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80">
                                     <span className="text-sm font-semibold text-gray-700">Header</span>
-                                    <ToggleSwitch enabled={showHeader} onChange={setShowHeader} disabled={isApproved} />
+                                    <ToggleSwitch enabled={showHeader} onChange={setShowHeader} disabled={isApproved || !!bodyMediaFile} />
                                 </div>
                                 <div className={`transition-all duration-300 ease-in-out ${showHeader ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                                     <div className="px-4 py-3 border-t border-gray-100">
+                                        {bodyMediaFile && (
+                                            <p className="text-[10px] text-amber-600 mb-2">Media attachment is set — text header will be ignored. Remove the media to use a text header.</p>
+                                        )}
                                         <input
                                             type="text"
                                             value={headerText}
                                             onChange={e => setHeaderText(e.target.value)}
                                             placeholder="Enter header text"
                                             className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm"
-                                            disabled={isApproved}
+                                            disabled={isApproved || !!bodyMediaFile}
+                                            maxLength={60}
                                         />
+                                        <p className="text-[10px] text-gray-400 mt-1">Max 60 characters. Text header for your template.</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* ── Body Section ── */}
+                            {/* Body Section — with media upload via Paperclip */}
                             <div className="rounded-xl border border-gray-200 overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80">
                                     <span className="text-sm font-semibold text-gray-700">Body</span>
@@ -350,7 +531,12 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                     <textarea
                                         ref={bodyRef}
                                         value={body}
-                                        onChange={e => setBody(e.target.value)}
+                                        onChange={e => {
+                                            setBody(e.target.value);
+                                            saveCursorPosition();
+                                        }}
+                                        onSelect={saveCursorPosition}
+                                        onBlur={saveCursorPosition}
                                         placeholder="Enter body text here"
                                         className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm min-h-[120px] resize-y"
                                         disabled={isApproved}
@@ -381,6 +567,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                             </button>
                                             <button
                                                 type="button"
+                                                onClick={handleEmojiClick}
                                                 disabled={isApproved}
                                                 className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
                                                 title="Emoji"
@@ -405,23 +592,108 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                             >
                                                 <Italic size={15} />
                                             </button>
-                                            <button
-                                                type="button"
-                                                disabled={isApproved}
-                                                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
-                                                title="Attachment"
-                                            >
-                                                <Paperclip size={15} />
-                                            </button>
+                                            {/* Attachment / Media picker */}
+                                            <div className="relative" ref={mediaPickerRef}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowMediaPicker(!showMediaPicker)}
+                                                    disabled={isApproved || bodyMediaUploading}
+                                                    className={`p-1.5 rounded-md transition-colors disabled:opacity-50 ${bodyMediaFile ? 'text-green-600 bg-green-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                                                    title="Attach media"
+                                                >
+                                                    {bodyMediaUploading ? (
+                                                        <Loader2 size={15} className="animate-spin" />
+                                                    ) : (
+                                                        <Paperclip size={15} />
+                                                    )}
+                                                </button>
+
+                                                {showMediaPicker && !bodyMediaFile && (
+                                                    <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-xl border border-gray-100 z-20 overflow-hidden w-48">
+                                                        <div className="p-1">
+                                                            {[
+                                                                { key: 'IMAGE', label: 'Image', icon: Image, hint: 'JPG, PNG' },
+                                                                { key: 'VIDEO', label: 'Video', icon: Film, hint: 'MP4' },
+                                                                { key: 'DOCUMENT', label: 'Document', icon: FileText, hint: 'PDF' },
+                                                            ].map(fmt => (
+                                                                <button
+                                                                    key={fmt.key}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setBodyMediaFormat(fmt.key);
+                                                                        setShowMediaPicker(false);
+                                                                        setTimeout(() => bodyMediaFileRef.current?.click(), 100);
+                                                                    }}
+                                                                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                                                >
+                                                                    <fmt.icon size={15} className="text-gray-400" />
+                                                                    <span className="font-medium text-xs">{fmt.label}</span>
+                                                                    <span className="text-[10px] text-gray-400 ml-auto">{fmt.hint}</span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         <span className="text-xs text-gray-400 tabular-nums">
                                             {body.length}<span className="text-gray-300">/</span>950
                                         </span>
                                     </div>
+
+                                    {/* Hidden file input for body media */}
+                                    <input
+                                        ref={bodyMediaFileRef}
+                                        type="file"
+                                        accept={MEDIA_ACCEPT[bodyMediaFormat] || ''}
+                                        onChange={handleBodyMediaUpload}
+                                        className="hidden"
+                                        disabled={isApproved || bodyMediaUploading}
+                                    />
+
+                                    {/* Uploaded media preview */}
+                                    {bodyMediaFile && (
+                                        <div className="mt-3 border border-gray-200 rounded-lg p-3 flex items-center gap-3 bg-gray-50/50">
+                                            {bodyMediaFormat === 'IMAGE' && bodyMediaPreviewUrl ? (
+                                                <img
+                                                    src={bodyMediaPreviewUrl}
+                                                    alt="Attachment"
+                                                    className="w-14 h-14 rounded-lg object-cover border border-gray-200"
+                                                />
+                                            ) : (
+                                                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+                                                    {bodyMediaFormat === 'VIDEO' ? <Film size={22} className="text-gray-400" /> : <FileText size={22} className="text-gray-400" />}
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-medium text-gray-700 truncate">{bodyMediaFile.fileName}</p>
+                                                <p className="text-[10px] text-gray-400">{(bodyMediaFile.fileSize / 1024).toFixed(1)} KB</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={removeBodyMedia}
+                                                disabled={isApproved}
+                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {bodyMediaUploading && (
+                                        <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                                            <Loader2 size={14} className="animate-spin text-green-500" />
+                                            Uploading media to WhatsApp...
+                                        </div>
+                                    )}
+
+                                    {bodyMediaError && (
+                                        <p className="text-xs text-red-500 mt-2">{bodyMediaError}</p>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* ── Footer Section ── */}
+                            {/* Footer Section */}
                             <div className="rounded-xl border border-gray-200 overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80">
                                     <span className="text-sm font-semibold text-gray-700">Footer</span>
@@ -441,7 +713,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                 </div>
                             </div>
 
-                            {/* ── Buttons Section ── */}
+                            {/* Buttons Section */}
                             <div className="rounded-xl border border-gray-200 overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80">
                                     <span className="text-sm font-semibold text-gray-700">Buttons</span>
@@ -480,7 +752,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                             <div className="space-y-3 pt-1">
                                                 {ctaButtons.map((btn, idx) => (
                                                     <div key={idx} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-                                                        {/* CTA Button Header */}
                                                         <div className="flex items-center justify-between px-3 py-2 bg-gray-50/60 border-b border-gray-100">
                                                             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Button {idx + 1}</span>
                                                             {ctaButtons.length > 1 && (
@@ -494,9 +765,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                                 </button>
                                                             )}
                                                         </div>
-
                                                         <div className="p-3 space-y-2.5">
-                                                            {/* Action Type */}
                                                             <div>
                                                                 <label className="block text-[11px] font-medium text-gray-500 mb-1">Type of action</label>
                                                                 <div className="flex gap-1.5">
@@ -526,8 +795,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                                     </button>
                                                                 </div>
                                                             </div>
-
-                                                            {/* Button Text */}
                                                             <div>
                                                                 <label className="block text-[11px] font-medium text-gray-500 mb-1">Button text</label>
                                                                 <input
@@ -540,8 +807,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                                     maxLength={25}
                                                                 />
                                                             </div>
-
-                                                            {/* Visit Website Fields */}
                                                             {btn.actionType === 'visit_website' && (
                                                                 <>
                                                                     <div>
@@ -569,8 +834,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                                     </div>
                                                                 </>
                                                             )}
-
-                                                            {/* Call Phone Fields */}
                                                             {btn.actionType === 'call_phone' && (
                                                                 <div>
                                                                     <label className="block text-[11px] font-medium text-gray-500 mb-1">Phone number</label>
@@ -587,8 +850,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                         </div>
                                                     </div>
                                                 ))}
-
-                                                {/* Add another button */}
                                                 {ctaButtons.length < 2 && (
                                                     <button
                                                         type="button"
@@ -653,17 +914,25 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                         <div className="flex gap-3">
                             <button
                                 onClick={onClose}
-                                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-white transition-all text-sm"
+                                disabled={submitting}
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-white transition-all text-sm disabled:opacity-50"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 form="templateForm"
-                                disabled={isApproved}
-                                className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                disabled={isApproved || submitting}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                             >
-                                {isEdit ? 'Save Changes' : 'Submit Template'}
+                                {submitting ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    isEdit ? 'Save Changes' : 'Submit Template'
+                                )}
                             </button>
                         </div>
                     </div>
@@ -713,10 +982,33 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                             {/* Message bubble */}
                             <div className="max-w-[85%]">
                                 <div className="bg-white rounded-lg rounded-tl-none shadow-sm overflow-hidden">
-                                    {/* Header in preview */}
+                                    {/* Text header in preview */}
                                     {showHeader && headerText && (
                                         <div className="px-2.5 pt-2.5 pb-1">
                                             <p className="text-[13px] font-semibold text-gray-900">{headerText}</p>
+                                        </div>
+                                    )}
+                                    {/* Media preview (from body attachment) */}
+                                    {bodyMediaFormat === 'IMAGE' && bodyMediaFile && bodyMediaPreviewUrl && (
+                                        <img src={bodyMediaPreviewUrl} alt="Attachment" className="w-full h-36 object-cover" />
+                                    )}
+                                    {bodyMediaFormat === 'VIDEO' && bodyMediaFile && (
+                                        <div className="w-full h-36 bg-gray-900 flex items-center justify-center">
+                                            <Film size={32} className="text-white/60" />
+                                        </div>
+                                    )}
+                                    {bodyMediaFormat === 'DOCUMENT' && bodyMediaFile && (
+                                        <div className="w-full h-24 bg-gray-100 flex items-center justify-center gap-2 border-b border-gray-200">
+                                            <FileText size={20} className="text-gray-400" />
+                                            <span className="text-xs text-gray-500 truncate max-w-[60%]">{bodyMediaFile.fileName}</span>
+                                        </div>
+                                    )}
+                                    {bodyMediaFormat && !bodyMediaFile && (
+                                        <div className="w-full h-28 bg-gray-100 flex items-center justify-center">
+                                            <div className="text-center">
+                                                <Upload size={20} className="text-gray-300 mx-auto mb-1" />
+                                                <span className="text-[10px] text-gray-400">Upload {bodyMediaFormat.toLowerCase()}</span>
+                                            </div>
                                         </div>
                                     )}
                                     {/* Body in preview */}
@@ -784,11 +1076,11 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                         </div>
                     </div>
                 </div>
-                {/* ── Insert Variable Slide-Over Panel ── */}
+
+                {/* Insert Variable Slide-Over Panel */}
                 <div
                     className={`absolute top-0 right-0 h-full w-full sm:w-[380px] bg-white shadow-2xl border-l border-gray-200 z-10 flex flex-col transition-transform duration-300 ease-in-out ${showVariablePanel ? 'translate-x-0' : 'translate-x-full'}`}
                 >
-                    {/* Panel Header */}
                     <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                         <h4 className="font-bold text-gray-800 text-base">Insert variable</h4>
                         <button
@@ -800,14 +1092,11 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                         </button>
                     </div>
 
-                    {/* Panel Body */}
                     <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                        {/* Attributes Section */}
                         <div>
                             <h5 className="text-sm font-semibold text-gray-800 mb-1">Attributes</h5>
                             <p className="text-xs text-gray-400 mb-3">Choose the attribute that will be personalized</p>
 
-                            {/* Searchable Dropdown */}
                             <div className="relative" ref={attrDropdownRef}>
                                 <button
                                     type="button"
@@ -833,10 +1122,8 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                     <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${isAttrDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
-                                {/* Dropdown List */}
                                 {isAttrDropdownOpen && (
                                     <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 z-20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                                        {/* Search Input */}
                                         <div className="p-2 border-b border-gray-50">
                                             <div className="relative">
                                                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -850,8 +1137,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                                                 />
                                             </div>
                                         </div>
-
-                                        {/* Attributes List */}
                                         <div className="max-h-52 overflow-y-auto p-1">
                                             {filteredAttributes.length === 0 ? (
                                                 <div className="px-3 py-4 text-center text-xs text-gray-400">No attributes found</div>
@@ -884,7 +1169,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                             </div>
                         </div>
 
-                        {/* Value if empty Section */}
                         <div>
                             <h5 className="text-sm font-semibold text-gray-800 mb-1">Value if empty</h5>
                             <p className="text-xs text-gray-400 mb-3">
@@ -908,7 +1192,6 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
                         </div>
                     </div>
 
-                    {/* Panel Footer */}
                     <div className="p-5 border-t border-gray-100 bg-gray-50">
                         <div className="flex gap-3">
                             <button
