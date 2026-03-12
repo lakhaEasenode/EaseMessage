@@ -2,7 +2,8 @@ import React, { useState, useContext, useEffect } from 'react';
 import { Check } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import axios from 'axios';
-import { getCountryName } from '../data/countries';
+// import { getCountryName } from '../data/countries';
+const getCountryName = (code) => code; // TODO: restore when countries data file is added
 import EnterpriseRequestModal from '../components/EnterpriseRequestModal';
 
 const Pricing = () => {
