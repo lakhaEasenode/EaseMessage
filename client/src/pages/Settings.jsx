@@ -3,7 +3,9 @@ import { User, Lock, Building, Save, CheckCircle, AlertCircle, Users, MailPlus, 
 import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import { usePageHeader } from '../context/PageHeaderContext';
-import { COUNTRIES, getCountryName } from '../data/countries';
+// import { COUNTRIES, getCountryName } from '../data/countries';
+const COUNTRIES = [];
+const getCountryName = (code) => code; // TODO: restore when countries data file is added
 import EnterpriseRequestModal from '../components/EnterpriseRequestModal';
 
 const Settings = () => {
