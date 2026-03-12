@@ -7,31 +7,43 @@ const WhatsAppPhoneNumber = require('../models/WhatsAppPhoneNumber');
 const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
 const Template = require('../models/Template');
 
+const { resolveContactField } = require('../utils/contactFields');
+
 /**
  * Build template components array from variable mapping and contact data.
  * Resolves {{1}}, {{2}} etc. to actual contact field values.
+ * Supports both body and header variables.
  */
 function buildTemplateComponents(contact, variableMapping) {
     if (!variableMapping || variableMapping.length === 0) return [];
 
-    const params = variableMapping
-        .sort((a, b) => a.parameterIndex - b.parameterIndex)
-        .map(mapping => {
-            let value;
-            if (mapping.source === 'static') {
-                value = mapping.staticValue || '';
-            } else {
-                // Try standard fields first, then customAttributes
-                value = contact[mapping.fieldName]
-                    || (contact.customAttributes && contact.customAttributes.get
-                        ? contact.customAttributes.get(mapping.fieldName)
-                        : undefined)
-                    || '';
-            }
-            return { type: 'text', text: value || 'Customer' };
-        });
+    // Group mappings by component type
+    const grouped = {};
+    for (const mapping of variableMapping) {
+        const type = mapping.componentType || 'body';
+        if (!grouped[type]) grouped[type] = [];
+        grouped[type].push(mapping);
+    }
 
-    return [{ type: 'body', parameters: params }];
+    const components = [];
+
+    for (const [componentType, mappings] of Object.entries(grouped)) {
+        const params = mappings
+            .sort((a, b) => a.parameterIndex - b.parameterIndex)
+            .map(mapping => {
+                let value;
+                if (mapping.source === 'static') {
+                    value = mapping.staticValue || '';
+                } else {
+                    value = resolveContactField(contact, mapping.fieldName);
+                }
+                return { type: 'text', text: value || 'Customer' };
+            });
+
+        components.push({ type: componentType, parameters: params });
+    }
+
+    return components;
 }
 
 /**

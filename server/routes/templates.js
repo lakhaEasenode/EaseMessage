@@ -144,7 +144,7 @@ router.get('/sync', auth, async (req, res) => {
 // @desc    Create a new template via Facebook Graph API
 // @access  Private
 router.post('/', auth, async (req, res) => {
-    const { name, category, language, body, components, wabaId } = req.body;
+    const { name, category, language, body, components, wabaId, variableDefinitions } = req.body;
 
     if (!name || !category || !body) {
         return res.status(400).json({ msg: 'Please provide all required fields' });
@@ -217,6 +217,7 @@ router.post('/', auth, async (req, res) => {
             language,
             body,
             variables,
+            variableDefinitions: variableDefinitions || [],
             components: graphComponents,
             status: fbData.status || 'PENDING'
         });
@@ -234,6 +235,14 @@ router.post('/', auth, async (req, res) => {
         }
         res.status(500).send('Server error');
     }
+});
+
+// @route   GET api/templates/contact-fields
+// @desc    Get available contact fields for template variable mapping
+// @access  Private
+router.get('/contact-fields', auth, (req, res) => {
+    const { CONTACT_FIELDS } = require('../utils/contactFields');
+    res.json(CONTACT_FIELDS);
 });
 
 module.exports = router;

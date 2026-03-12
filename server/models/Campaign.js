@@ -15,6 +15,7 @@ const CampaignSchema = new mongoose.Schema({
     sendingInterval: { type: Number, default: 0 }, // Gap between messages in seconds
     templateVariableMapping: [{
         parameterIndex: { type: Number, required: true },
+        componentType: { type: String, enum: ['body', 'header'], default: 'body' },
         source: { type: String, enum: ['field', 'static'], required: true },
         fieldName: { type: String },
         staticValue: { type: String }

@@ -36,6 +36,11 @@ const TemplateSchema = new mongoose.Schema({
     variables: [{
         type: String
     }],
+    variableDefinitions: [{
+        index: { type: Number, required: true },
+        attribute: { type: String },   // contact field key (e.g. 'firstName')
+        fallback: { type: String, default: '' }
+    }],
     status: {
         type: String,
         enum: ['APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'DISABLED'],

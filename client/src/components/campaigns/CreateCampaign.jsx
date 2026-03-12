@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Calendar, Clock, Check, Loader } from 'lucide-react';
 import AuthContext from '../../context/AuthContext';
 import PhoneNumberSelector from './PhoneNumberSelector';
 import TemplateSelector from './TemplateSelector';
+import VariableMapper from './VariableMapper';
 import AudienceSelector from './AudienceSelector';
 
 const MIN_INTERVAL = parseInt(import.meta.env.VITE_MIN_INTERVAL || '10');
@@ -25,7 +26,8 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
         templateId: '',
         listId: '',
         scheduledAt: '',
-        sendingInterval: 0
+        sendingInterval: 0,
+        templateVariableMapping: []
     });
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
@@ -58,7 +60,7 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                 setLoading(true);
                 const res = await axios.get(`${API_URL}/campaigns/templates/${formData.phoneNumberId}`, config);
                 setTemplates(res.data);
-                setFormData(prev => ({ ...prev, templateId: '' }));
+                setFormData(prev => ({ ...prev, templateId: '', templateVariableMapping: [] }));
             } catch (err) {
                 setError('Failed to load templates for selected phone.');
             } finally {
@@ -68,7 +70,15 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
         fetchTemplates();
     }, [formData.phoneNumberId]);
 
-    const isValid = formData.name.trim() && formData.phoneNumberId && formData.templateId && formData.listId;
+    const selectedTemplate = templates.find(t => t._id === formData.templateId);
+    const templateVarCount = (selectedTemplate?.variables || []).length;
+    const mappingsComplete = templateVarCount === 0 || (
+        formData.templateVariableMapping.length >= templateVarCount &&
+        formData.templateVariableMapping.every(m =>
+            (m.source === 'field' && m.fieldName) || (m.source === 'static' && m.staticValue)
+        )
+    );
+    const isValid = formData.name.trim() && formData.phoneNumberId && formData.templateId && formData.listId && mappingsComplete;
 
     const handleSubmit = async (asDraft = false) => {
         setError(null);
@@ -157,9 +167,21 @@ const CreateCampaign = ({ onCancel, onSuccess }) => {
                         <TemplateSelector
                             templates={templates}
                             selectedTemplateId={formData.templateId}
-                            onSelect={(id) => setFormData({ ...formData, templateId: id })}
+                            onSelect={(id) => setFormData({ ...formData, templateId: id, templateVariableMapping: [] })}
                         />
                     )}
+                </div>
+            )}
+
+            {/* Variable Mapping — appears if selected template has variables */}
+            {formData.templateId && templateVarCount > 0 && (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <VariableMapper
+                        template={selectedTemplate}
+                        listId={formData.listId}
+                        mappings={formData.templateVariableMapping}
+                        onMappingsChange={(mappings) => setFormData(prev => ({ ...prev, templateVariableMapping: mappings }))}
+                    />
                 </div>
             )}
 

@@ -2,19 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Info, ChevronLeft, Video, Phone, Plus, Camera, Mic, Smile, Bold, Italic, Strikethrough, Paperclip, SmilePlus, Search, User, ChevronDown, Globe, PhoneCall, Trash2, ExternalLink, Upload, FileText, Image, Film, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
-// Contact attribute definitions derived from the Contact data model
+// Contact attribute definitions — keys match Contact model fields and server/utils/contactFields.js
 const CONTACT_ATTRIBUTES = [
-    { key: 'FIRSTNAME', label: 'FIRSTNAME', type: 'Text' },
-    { key: 'LASTNAME', label: 'LASTNAME', type: 'Text' },
-    { key: 'PHONE_NUMBER', label: 'PHONE_NUMBER', type: 'Text' },
-    { key: 'COUNTRY_CODE', label: 'COUNTRY_CODE', type: 'Text' },
-    { key: 'EMAIL', label: 'EMAIL', type: 'Text' },
-    { key: 'COMPANY_NAME', label: 'COMPANY_NAME', type: 'Text' },
-    { key: 'OPTED_IN', label: 'OPTED_IN', type: 'Boolean' },
-    { key: 'OPT_IN_SOURCE', label: 'OPT_IN_SOURCE', type: 'Category' },
-    { key: 'TAGS', label: 'TAGS', type: 'Text' },
-    { key: 'SHEET_NAME', label: 'SHEET_NAME', type: 'Text' },
-    { key: 'CONVERSATION_STATUS', label: 'CONVERSATION_STATUS', type: 'Category' },
+    { key: 'firstName',    label: 'First Name',    type: 'Text' },
+    { key: 'lastName',     label: 'Last Name',     type: 'Text' },
+    { key: 'phoneNumber',  label: 'Phone Number',  type: 'Text' },
+    { key: 'countryCode',  label: 'Country Code',  type: 'Text' },
+    { key: 'email',        label: 'Email',          type: 'Text' },
+    { key: 'companyName',  label: 'Company Name',   type: 'Text' },
+    { key: 'tags',         label: 'Tags',            type: 'Text' },
+    { key: 'sheetName',    label: 'Sheet Name',     type: 'Text' },
 ];
 
 const TYPE_COLORS = {
@@ -83,6 +80,9 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     const [isAttrDropdownOpen, setIsAttrDropdownOpen] = useState(false);
     const attrDropdownRef = useRef(null);
 
+    // Variable definitions — persisted with template so campaigns can auto-populate mappings
+    const [variableDefinitions, setVariableDefinitions] = useState([]);
+
     const bodyRef = useRef(null);
     const cursorPosRef = useRef({ start: 0, end: 0 });
 
@@ -142,8 +142,15 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
     }, [wabaAccounts, selectedWabaId]);
 
     useEffect(() => {
-        setPreviewBody(body);
-    }, [body]);
+        // Replace {{N}} with fallback or attribute label in preview
+        let preview = body;
+        for (const def of variableDefinitions) {
+            const placeholder = `{{${def.index}}}`;
+            const display = def.fallback || def.attribute || placeholder;
+            preview = preview.replace(placeholder, `[${display}]`);
+        }
+        setPreviewBody(preview);
+    }, [body, variableDefinitions]);
 
     // Close attribute dropdown on outside click
     useEffect(() => {
@@ -229,7 +236,7 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         setSubmitting(true);
         try {
             const components = buildComponents();
-            await onSubmit({ name, category, language, body, components, wabaId: selectedWabaId });
+            await onSubmit({ name, category, language, body, components, wabaId: selectedWabaId, variableDefinitions });
         } catch (err) {
             const msg = err.response?.data?.msg || err.message || 'Failed to create template. Please try again.';
             setSubmitError(msg);
@@ -272,6 +279,10 @@ const TemplateForm = ({ onClose, onSubmit, initialData, wabaAccounts = [] }) => 
         if (!selectedAttribute) return;
         const count = (body.match(/{{(\d+)}}/g) || []).length + 1;
         insertAtCursor(`{{${count}}}`);
+        setVariableDefinitions(prev => [
+            ...prev,
+            { index: count, attribute: selectedAttribute.key, fallback: fallbackValue || '' }
+        ]);
         setShowVariablePanel(false);
     };
 

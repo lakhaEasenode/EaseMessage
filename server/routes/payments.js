@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Razorpay = require('razorpay');
 const auth = require('../middleware/auth');
 const User = require('../models/User');

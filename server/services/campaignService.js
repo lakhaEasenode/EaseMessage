@@ -33,7 +33,22 @@ class CampaignService {
             throw new Error('Invalid audience list selected.');
         }
 
-        // 4. Validate sending interval
+        // 4. Validate template variable mapping completeness
+        const templateVarCount = (template.variables || []).length;
+        const mapping = templateVariableMapping || [];
+        if (templateVarCount > 0 && mapping.length < templateVarCount) {
+            throw new Error(`Template has ${templateVarCount} variable(s) but only ${mapping.length} mapping(s) provided. Please map all variables.`);
+        }
+        for (const m of mapping) {
+            if (m.source === 'field' && !m.fieldName) {
+                throw new Error(`Variable {{${m.parameterIndex}}} is mapped to a contact field but no field name was specified.`);
+            }
+            if (m.source === 'static' && !m.staticValue) {
+                throw new Error(`Variable {{${m.parameterIndex}}} is mapped to a static value but no value was provided.`);
+            }
+        }
+
+        // 5. Validate sending interval
         const minInterval = parseInt(process.env.CAMPAIGN_MIN_INTERVAL || '10');
         const maxInterval = parseInt(process.env.CAMPAIGN_MAX_INTERVAL || '60');
         const interval = sendingInterval || 0;
@@ -41,7 +56,7 @@ class CampaignService {
             throw new Error(`Sending interval must be between ${minInterval} and ${maxInterval} seconds (or 0 for no delay).`);
         }
 
-        // 5. Create Campaign
+        // 6. Create Campaign
         const newCampaign = new Campaign({
             user: userId,
             name,
@@ -79,7 +94,7 @@ class CampaignService {
     async getCampaign(userId, campaignId) {
         const campaign = await Campaign.findOne({ _id: campaignId, user: userId })
             .populate('phoneNumberId', 'displayPhoneNumber verifiedName')
-            .populate('templateId', 'name components language category body variables')
+            .populate('templateId', 'name components language category body variables variableDefinitions')
             .populate('listId', 'name contactCount');
         if (!campaign) throw new Error('Campaign not found');
         return campaign;
