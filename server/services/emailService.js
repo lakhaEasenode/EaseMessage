@@ -44,4 +44,34 @@ const sendOTP = async (toEmail, otp, type = 'verify') => {
     await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendOTP };
+const sendWorkspaceInvite = async ({ toEmail, inviterName, workspaceName, acceptUrl }) => {
+    const mailOptions = {
+        from: `"EaseMessage" <${process.env.SMTP_EMAIL}>`,
+        to: toEmail,
+        subject: `Join ${workspaceName} on EaseMessage`,
+        html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+                <div style="background: linear-gradient(135deg, #0f766e, #2563eb); padding: 32px 24px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">EaseMessage</h1>
+                    <p style="color: rgba(255,255,255,0.88); margin: 8px 0 0; font-size: 14px;">Workspace invitation</p>
+                </div>
+                <div style="padding: 32px 24px;">
+                    <p style="color: #111827; font-size: 16px; margin: 0 0 12px;">${inviterName} invited you to join <strong>${workspaceName}</strong> on EaseMessage.</p>
+                    <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">Accept the invitation to collaborate inside the workspace, manage WhatsApp campaigns, and access shared settings.</p>
+                    <div style="text-align: center; margin: 28px 0;">
+                        <a href="${acceptUrl}" style="display: inline-block; background: linear-gradient(135deg, #0f766e, #2563eb); color: #ffffff; text-decoration: none; padding: 14px 22px; border-radius: 12px; font-weight: 600;">Accept invitation</a>
+                    </div>
+                    <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0;">If the button does not work, open this link:</p>
+                    <p style="word-break: break-all; color: #2563eb; font-size: 13px; margin: 10px 0 0;">${acceptUrl}</p>
+                </div>
+                <div style="background: #f9fafb; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} EaseMessage. All rights reserved.</p>
+                </div>
+            </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendOTP, sendWorkspaceInvite };

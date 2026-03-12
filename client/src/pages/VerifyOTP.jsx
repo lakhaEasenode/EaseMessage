@@ -9,6 +9,7 @@ const VerifyOTP = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const email = searchParams.get('email') || '';
+    const inviteToken = searchParams.get('invite') || '';
 
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [error, setError] = useState('');
@@ -78,7 +79,8 @@ const VerifyOTP = () => {
         try {
             const res = await axios.post(`${API_URL}/auth/verify-otp`, { email, otp: otpString });
             setSuccess(res.data.msg);
-            setTimeout(() => navigate('/login'), 2000);
+            const loginPath = inviteToken ? `/login?invite=${encodeURIComponent(inviteToken)}` : '/login';
+            setTimeout(() => navigate(loginPath), 2000);
         } catch (err) {
             setError(err.response?.data?.msg || 'Verification failed');
         } finally {
@@ -196,7 +198,7 @@ const VerifyOTP = () => {
                             )}
                         </p>
                         <p className="text-sm">
-                            <Link to="/register" className="font-medium text-gray-500 hover:text-gray-700">
+                            <Link to={inviteToken ? `/register?invite=${encodeURIComponent(inviteToken)}` : '/register'} className="font-medium text-gray-500 hover:text-gray-700">
                                 ← Back to Register
                             </Link>
                         </p>

@@ -1,4 +1,4 @@
-import { createContext, useReducer, useEffect } from 'react';
+import { createContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -11,7 +11,6 @@ const initialState = {
 };
 
 const authReducer = (state, action) => {
-    console.log('AuthReducer called:', action.type, action.payload);
     switch (action.type) {
         case 'USER_LOADED':
             return {
@@ -22,9 +21,7 @@ const authReducer = (state, action) => {
             };
         case 'REGISTER_SUCCESS':
         case 'LOGIN_SUCCESS':
-            console.log('Setting token in localStorage:', action.payload.token);
             localStorage.setItem('token', action.payload.token);
-            console.log('Token set, new state:', { token: action.payload.token, isAuthenticated: true });
             return {
                 ...state,
                 ...action.payload,
@@ -50,17 +47,9 @@ const authReducer = (state, action) => {
 
 export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
-    useEffect(() => {
-        // Only try to load user if a token exists in local storage
-        if (localStorage.getItem('token')) {
-            loadUser();
-        } else {
-            dispatch({ type: 'AUTH_ERROR' });
-        }
-    }, []);
-
-    const loadUser = async () => {
+    const loadUser = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
             dispatch({ type: 'AUTH_ERROR' });
@@ -74,15 +63,27 @@ export const AuthProvider = ({ children }) => {
         };
 
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/auth/user`, config);
+            const res = await axios.get(`${API_URL}/auth/user`, config);
+            setWorkspaceHeader(res.data?.activeWorkspaceId);
             dispatch({
                 type: 'USER_LOADED',
                 payload: res.data
             });
         } catch (err) {
+            console.error('Failed to load user', err);
             dispatch({ type: 'AUTH_ERROR' });
         }
-    };
+    }, [API_URL]);
+
+    useEffect(() => {
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+            setAuthToken(storedToken);
+            loadUser();
+        } else {
+            dispatch({ type: 'AUTH_ERROR' });
+        }
+    }, [loadUser]);
 
     const register = async formData => {
         const config = {
@@ -92,7 +93,7 @@ export const AuthProvider = ({ children }) => {
         };
 
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/auth/register`, formData, config);
+            const res = await axios.post(`${API_URL}/auth/register`, formData, config);
             // Don't auto-login — user needs to verify OTP first
             return res.data;
         } catch (err) {
@@ -112,28 +113,18 @@ export const AuthProvider = ({ children }) => {
         };
 
         try {
-            console.log('Making login API request...');
-            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/auth/login`, formData, config);
-            console.log('Login API response:', res.data);
-
-            console.log('Dispatching LOGIN_SUCCESS');
+            const res = await axios.post(`${API_URL}/auth/login`, formData, config);
             dispatch({
                 type: 'LOGIN_SUCCESS',
                 payload: res.data
             });
-            console.log('LOGIN_SUCCESS dispatched');
 
-            // Set the token in axios defaults for future requests
             if (res.data.token) {
-                axios.defaults.headers.common['x-auth-token'] = res.data.token;
-                console.log('Set axios x-auth-token header');
+                setAuthToken(res.data.token);
             }
 
-            // Dispatch USER_LOADED with the user data we already have from login response
-            // This avoids a race condition where loadUser() tries to read from localStorage
-            // before the token has been fully persisted
             if (res.data.user) {
-                console.log('Dispatching USER_LOADED');
+                setWorkspaceHeader(res.data.user.activeWorkspaceId);
                 dispatch({
                     type: 'USER_LOADED',
                     payload: res.data.user
@@ -148,7 +139,50 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => dispatch({ type: 'LOGOUT' });
+    const switchWorkspace = async (workspaceId) => {
+        const config = {
+            headers: {
+                'x-auth-token': state.token
+            }
+        };
+
+        const res = await axios.put(`${API_URL}/workspaces/switch`, { workspaceId }, config);
+        setWorkspaceHeader(res.data?.currentWorkspace?.id || workspaceId);
+        dispatch({
+            type: 'USER_LOADED',
+            payload: {
+                ...state.user,
+                activeWorkspaceId: res.data?.currentWorkspace?.id || workspaceId,
+                currentWorkspace: res.data?.currentWorkspace || state.user?.currentWorkspace,
+                workspaces: res.data?.workspaces || state.user?.workspaces || []
+            }
+        });
+
+        return res.data;
+    };
+
+    const refreshWorkspaces = async () => {
+        const config = {
+            headers: {
+                'x-auth-token': state.token
+            }
+        };
+
+        const res = await axios.get(`${API_URL}/auth/user`, config);
+        setWorkspaceHeader(res.data?.activeWorkspaceId);
+        dispatch({
+            type: 'USER_LOADED',
+            payload: res.data
+        });
+
+        return res.data;
+    };
+
+    const logout = () => {
+        setAuthToken(null);
+        setWorkspaceHeader(null);
+        dispatch({ type: 'LOGOUT' });
+    };
 
     return (
         <AuthContext.Provider
@@ -160,7 +194,9 @@ export const AuthProvider = ({ children }) => {
                 register,
                 login,
                 logout,
-                loadUser
+                loadUser,
+                switchWorkspace,
+                refreshWorkspaces
             }}
         >
             {children}
@@ -174,6 +210,14 @@ const setAuthToken = token => {
         axios.defaults.headers.common['x-auth-token'] = token;
     } else {
         delete axios.defaults.headers.common['x-auth-token'];
+    }
+};
+
+const setWorkspaceHeader = workspaceId => {
+    if (workspaceId) {
+        axios.defaults.headers.common['x-workspace-id'] = workspaceId;
+    } else {
+        delete axios.defaults.headers.common['x-workspace-id'];
     }
 };
 

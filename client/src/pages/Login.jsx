@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { MessageSquare } from 'lucide-react';
 
@@ -7,6 +7,8 @@ const Login = () => {
     const authContext = useContext(AuthContext);
     const { login, isAuthenticated } = authContext;
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const inviteToken = searchParams.get('invite') || '';
 
     const [user, setUser] = useState({
         email: '',
@@ -18,16 +20,15 @@ const Login = () => {
 
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/');
+            navigate(inviteToken ? `/accept-invite?token=${encodeURIComponent(inviteToken)}` : '/');
         }
-    }, [isAuthenticated, navigate]);
+    }, [inviteToken, isAuthenticated, navigate]);
 
     const onChange = e => setUser({ ...user, [e.target.name]: e.target.value });
 
     const onSubmit = async e => {
         e.preventDefault();
-        console.log('Login form submitted', { email, password: '***' });
-        setError('');
+            setError('');
 
         if (email === '' || password === '') {
             setError('Please fill in all fields');
@@ -35,13 +36,11 @@ const Login = () => {
         }
 
         try {
-            console.log('Calling login function...');
             await login({ email, password });
-            console.log('Login successful');
         } catch (err) {
-            console.error('Login error:', err);
             if (err.response?.data?.needsVerification) {
-                navigate(`/verify-otp?email=${encodeURIComponent(err.response.data.email)}`);
+                const inviteSuffix = inviteToken ? `&invite=${encodeURIComponent(inviteToken)}` : '';
+                navigate(`/verify-otp?email=${encodeURIComponent(err.response.data.email)}${inviteSuffix}`);
                 return;
             }
             const errorMsg = err.response?.data?.msg || err.message || 'Login failed';
@@ -63,7 +62,7 @@ const Login = () => {
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                         Or{' '}
-                        <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
+                        <Link to={inviteToken ? `/register?invite=${encodeURIComponent(inviteToken)}` : '/register'} className="font-medium text-primary-600 hover:text-primary-500">
                             create a new account
                         </Link>
                     </p>

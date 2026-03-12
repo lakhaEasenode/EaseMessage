@@ -13,6 +13,9 @@ const List = require('./models/List');
 const Template = require('./models/Template');
 const WhatsAppBusinessAccount = require('./models/WhatsAppBusinessAccount');
 const WhatsAppPhoneNumber = require('./models/WhatsAppPhoneNumber');
+const Workspace = require('./models/Workspace');
+const WorkspaceMember = require('./models/WorkspaceMember');
+const { backfillExistingUsersWithWorkspace } = require('./utils/workspace');
 
 dotenv.config();
 
@@ -20,6 +23,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Init Middleware
+// We need raw body matching for Stripe Webhook specifically to verify signatures
+app.use('/api/payments/webhook/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json({ extended: false }));
 app.use(cors());
 
@@ -32,6 +37,9 @@ require('./models/List');
 require('./models/Message');
 require('./models/Template');
 require('./models/Campaign');
+require('./models/Workspace');
+require('./models/WorkspaceMember');
+require('./models/WorkspaceInvite');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -43,6 +51,8 @@ app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/workspaces', require('./routes/workspaces'));
 
 const seedData = async () => {
   try {
@@ -125,6 +135,23 @@ const seedData = async () => {
     ]);
 
     // 6. Create a List and associate contacts
+    const workspace = await Workspace.create({
+      name: testUser.firstName,
+      companyName: testUser.businessName || '',
+      ownerUserId: testUser._id,
+      createdBy: testUser._id
+    });
+
+    await WorkspaceMember.create({
+      workspaceId: workspace._id,
+      userId: testUser._id,
+      role: 'owner',
+      status: 'active'
+    });
+
+    testUser.activeWorkspaceId = workspace._id;
+    await testUser.save();
+
     const list = await List.create({
       name: 'All Contacts',
       description: 'Default list with all seed contacts',
@@ -200,6 +227,7 @@ const startServer = async () => {
     console.log('MongoDB connected');
 
     await seedData();
+    await backfillExistingUsersWithWorkspace();
 
     // Initialize Redis and campaign workers
     let workersStarted = false;

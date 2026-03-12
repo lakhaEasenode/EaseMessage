@@ -10,8 +10,9 @@ const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         // Fetch templates first
-        const templates = await Template.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean();
+        const templates = await Template.find({ userId: scopeUserId }).sort({ createdAt: -1 }).lean();
 
         // Manually populate WABA info to avoid Mongoose populate issues
         const populatedTemplates = await Promise.all(templates.map(async (template) => {
@@ -34,8 +35,9 @@ router.get('/', auth, async (req, res) => {
 // @access  Private
 router.get('/sync', auth, async (req, res) => {
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         // 1. Get All User's Connected WABAs
-        const wabaAccounts = await WhatsAppBusinessAccount.find({ userId: req.user.id });
+        const wabaAccounts = await WhatsAppBusinessAccount.find({ userId: scopeUserId });
 
         if (!wabaAccounts || wabaAccounts.length === 0) {
             return res.status(400).json({ msg: 'No connected WhatsApp Business Accounts found. Please connect one first.' });
@@ -104,7 +106,7 @@ router.get('/sync', auth, async (req, res) => {
                         syncResults.updated++;
                     } else {
                         const newTemplate = new Template({
-                            userId: req.user.id,
+                            userId: scopeUserId,
                             wabaId: wabaAccount._id,
                             template_id: tmpl.id,
                             name: tmpl.name,
@@ -149,8 +151,9 @@ router.post('/', auth, async (req, res) => {
     }
 
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         // 1. Get User's Connected WABA
-        const wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: req.user.id });
+        const wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: scopeUserId });
         if (!wabaAccount || !wabaAccount.accessToken) {
             return res.status(400).json({ msg: 'No connected WhatsApp Business Account found. Please connect one first.' });
         }
@@ -193,7 +196,7 @@ router.post('/', auth, async (req, res) => {
 
         // 5. Save to Database (store the components array)
         const newTemplate = new Template({
-            userId: req.user.id,
+            userId: scopeUserId,
             wabaId: wabaAccount._id,
             template_id: fbData.id,
             name,

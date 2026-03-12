@@ -19,6 +19,8 @@ import Settings from './pages/Settings';
 import VerifyOTP from './pages/VerifyOTP';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Pricing from './pages/Pricing';
+import AcceptInvite from './pages/AcceptInvite';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useContext(AuthContext);
@@ -40,6 +42,7 @@ function App() {
               <Route path="/verify-otp" element={<VerifyOTP />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/accept-invite" element={<AcceptInvite />} />
 
               <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
                 <Route path="/" element={<Dashboard />} />
@@ -50,6 +53,7 @@ function App() {
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/inbox" element={<Inbox />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/pricing" element={<Pricing />} />
               </Route>
             </Routes>
           </Router>

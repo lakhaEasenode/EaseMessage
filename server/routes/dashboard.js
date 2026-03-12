@@ -10,7 +10,7 @@ const Message = require('../models/Message');
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.scopeUserId || req.user.id;
 
         const userContacts = await Contact.find({ userId, isDeleted: { $ne: true } }).select('_id optInSource');
         const contactIds = userContacts.map(c => c._id);

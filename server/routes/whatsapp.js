@@ -11,6 +11,7 @@ const { emitToUser } = require('../socket');
 // @access  Private
 router.post('/connect', auth, async (req, res) => {
     const { wabaId, accessToken } = req.body;
+    const scopeUserId = req.scopeUserId || req.user.id;
 
     if (!wabaId || !accessToken) {
         return res.status(400).json({ msg: 'WABA ID and Access Token are required' });
@@ -34,7 +35,7 @@ router.post('/connect', auth, async (req, res) => {
         } else {
             // Create new
             account = new WhatsAppBusinessAccount({
-                userId: req.user.id,
+                userId: scopeUserId,
                 wabaId: wabaData.id,
                 name: wabaData.name,
                 timezoneId: wabaData.timezone_id,
@@ -67,7 +68,7 @@ router.post('/connect', auth, async (req, res) => {
             } else {
                 // Create
                 phoneRecord = new WhatsAppPhoneNumber({
-                    userId: req.user.id,
+                    userId: scopeUserId,
                     wabaId: account._id,
                     phoneNumberId: phone.id,
                     verifiedName: phone.verified_name,
@@ -100,7 +101,7 @@ router.post('/connect', auth, async (req, res) => {
 // @access  Private
 router.get('/accounts', auth, async (req, res) => {
     try {
-        const accounts = await WhatsAppBusinessAccount.find({ userId: req.user.id });
+        const accounts = await WhatsAppBusinessAccount.find({ userId: req.scopeUserId || req.user.id });
         const result = [];
 
         for (const acc of accounts) {
@@ -128,7 +129,7 @@ router.put('/phone/:phoneNumberId/set-default', auth, async (req, res) => {
         // Find the phone number
         const phoneNumber = await WhatsAppPhoneNumber.findOne({
             phoneNumberId,
-            userId: req.user.id
+            userId: req.scopeUserId || req.user.id
         });
 
         if (!phoneNumber) {
@@ -137,7 +138,7 @@ router.put('/phone/:phoneNumberId/set-default', auth, async (req, res) => {
 
         // Unset all other defaults for this user
         await WhatsAppPhoneNumber.updateMany(
-            { userId: req.user.id },
+            { userId: req.scopeUserId || req.user.id },
             { isDefault: false }
         );
 

@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Otp = require('../models/Otp');
 const { sendOTP } = require('../services/emailService');
+const { buildAuthUserPayload, ensureDefaultWorkspaceForUser } = require('../utils/workspace');
 
 // Generate a 6-digit OTP
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
@@ -87,7 +88,10 @@ router.post('/verify-otp', async (req, res) => {
         }
 
         // Mark user as verified
-        await User.findOneAndUpdate({ email }, { isVerified: true });
+        const user = await User.findOneAndUpdate({ email }, { isVerified: true }, { new: true });
+        if (user) {
+            await ensureDefaultWorkspaceForUser(user);
+        }
 
         // Clean up OTP
         await Otp.deleteMany({ email });
@@ -230,6 +234,8 @@ router.post('/login', async (req, res) => {
             return res.status(403).json({ msg: 'Please verify your email first', needsVerification: true, email });
         }
 
+        await ensureDefaultWorkspaceForUser(user);
+
         const payload = {
             user: {
                 id: user.id
@@ -240,9 +246,13 @@ router.post('/login', async (req, res) => {
             payload,
             process.env.JWT_SECRET,
             { expiresIn: 360000 },
-            (err, token) => {
+            async (err, token) => {
                 if (err) throw err;
-                res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+                const authUser = await buildAuthUserPayload(user.id);
+                res.json({ 
+                    token, 
+                    user: authUser
+                });
             }
         );
     } catch (err) {
@@ -256,7 +266,7 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/user', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        const user = await buildAuthUserPayload(req.user.id);
         res.json(user);
     } catch (err) {
         console.error(err.message);

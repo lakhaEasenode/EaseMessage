@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { PageHeaderProvider } from '../context/PageHeaderContext';
+import AuthContext from '../context/AuthContext';
 
 const Layout = () => {
     const location = useLocation();
     const isInbox = location.pathname === '/inbox';
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const { user } = useContext(AuthContext);
+    const workspaceKey = user?.activeWorkspaceId || 'default-workspace';
 
     return (
         <PageHeaderProvider>
@@ -35,7 +38,10 @@ const Layout = () => {
 
                 <div className="flex-1 flex flex-col h-screen overflow-hidden w-full relative">
                     <Header onMenuClick={() => setSidebarOpen(true)} />
-                    <main className={`flex-1 ${isInbox ? 'p-0 overflow-hidden' : 'p-2 overflow-auto'} w-full`}>
+                    <main
+                        key={workspaceKey}
+                        className={`flex-1 ${isInbox ? 'p-0 overflow-hidden' : 'p-2 overflow-auto'} w-full`}
+                    >
                         <Outlet />
                     </main>
                 </div>

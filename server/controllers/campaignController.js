@@ -6,7 +6,7 @@ class CampaignController {
      */
     async createCampaign(req, res) {
         try {
-            const campaign = await campaignService.createCampaign(req.user.id, req.body);
+            const campaign = await campaignService.createCampaign(req.scopeUserId || req.user.id, req.body);
             res.status(201).json(campaign);
         } catch (err) {
             console.error('Error creating campaign:', err.message);
@@ -19,7 +19,7 @@ class CampaignController {
      */
     async getCampaign(req, res) {
         try {
-            const campaign = await campaignService.getCampaign(req.user.id, req.params.id);
+            const campaign = await campaignService.getCampaign(req.scopeUserId || req.user.id, req.params.id);
             res.json(campaign);
         } catch (err) {
             console.error('Error fetching campaign:', err.message);
@@ -32,7 +32,7 @@ class CampaignController {
      */
     async getCampaigns(req, res) {
         try {
-            const campaigns = await campaignService.getCampaigns(req.user.id);
+            const campaigns = await campaignService.getCampaigns(req.scopeUserId || req.user.id);
             res.json(campaigns);
         } catch (err) {
             console.error('Error fetching campaigns:', err.message);
@@ -45,7 +45,7 @@ class CampaignController {
      */
     async startCampaign(req, res) {
         try {
-            const campaign = await campaignService.startCampaign(req.user.id, req.params.id);
+            const campaign = await campaignService.startCampaign(req.scopeUserId || req.user.id, req.params.id);
             res.json(campaign);
         } catch (err) {
             console.error('Error starting campaign:', err.message);
@@ -58,7 +58,7 @@ class CampaignController {
      */
     async pauseCampaign(req, res) {
         try {
-            const campaign = await campaignService.pauseCampaign(req.user.id, req.params.id);
+            const campaign = await campaignService.pauseCampaign(req.scopeUserId || req.user.id, req.params.id);
             res.json(campaign);
         } catch (err) {
             console.error('Error pausing campaign:', err.message);
@@ -71,7 +71,7 @@ class CampaignController {
      */
     async resumeCampaign(req, res) {
         try {
-            const campaign = await campaignService.resumeCampaign(req.user.id, req.params.id);
+            const campaign = await campaignService.resumeCampaign(req.scopeUserId || req.user.id, req.params.id);
             res.json(campaign);
         } catch (err) {
             console.error('Error resuming campaign:', err.message);
@@ -84,7 +84,7 @@ class CampaignController {
      */
     async cancelCampaign(req, res) {
         try {
-            const campaign = await campaignService.cancelCampaign(req.user.id, req.params.id);
+            const campaign = await campaignService.cancelCampaign(req.scopeUserId || req.user.id, req.params.id);
             res.json(campaign);
         } catch (err) {
             console.error('Error cancelling campaign:', err.message);
@@ -99,7 +99,7 @@ class CampaignController {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 50;
-            const result = await campaignService.getCampaignMessages(req.user.id, req.params.id, page, limit);
+            const result = await campaignService.getCampaignMessages(req.scopeUserId || req.user.id, req.params.id, page, limit);
             res.json(result);
         } catch (err) {
             console.error('Error fetching campaign messages:', err.message);
@@ -112,7 +112,7 @@ class CampaignController {
      */
     async updateCampaign(req, res) {
         try {
-            const campaign = await campaignService.updateCampaign(req.user.id, req.params.id, req.body);
+            const campaign = await campaignService.updateCampaign(req.scopeUserId || req.user.id, req.params.id, req.body);
             res.json(campaign);
         } catch (err) {
             console.error('Error updating campaign:', err.message);
@@ -125,7 +125,7 @@ class CampaignController {
      */
     async deleteCampaign(req, res) {
         try {
-            const result = await campaignService.deleteCampaign(req.user.id, req.params.id);
+            const result = await campaignService.deleteCampaign(req.scopeUserId || req.user.id, req.params.id);
             res.json(result);
         } catch (err) {
             console.error('Error deleting campaign:', err.message);
@@ -139,7 +139,7 @@ class CampaignController {
     async getVerifiedTemplates(req, res) {
         try {
             const { phoneNumberId } = req.params;
-            const templates = await campaignService.getVerifiedTemplatesForPhone(req.user.id, phoneNumberId);
+            const templates = await campaignService.getVerifiedTemplatesForPhone(req.scopeUserId || req.user.id, phoneNumberId);
             res.json(templates);
         } catch (err) {
             console.error('Error fetching verified templates:', err.message);

@@ -9,19 +9,20 @@ const List = require('../models/List');
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         const totalContacts = await Contact.countDocuments({
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false,
             optInSource: { $ne: 'whatsapp_inbound' }
         });
 
         const totalLists = await List.countDocuments({
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false
         });
 
         const optedInContacts = await Contact.countDocuments({
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false,
             optedIn: true,
             optInSource: { $ne: 'whatsapp_inbound' }

@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { MessageSquare } from 'lucide-react';
 
@@ -7,6 +7,8 @@ const Register = () => {
     const authContext = useContext(AuthContext);
     const { register, isAuthenticated } = authContext;
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const inviteToken = searchParams.get('invite') || '';
 
     const [user, setUser] = useState({
         firstName: '',
@@ -19,9 +21,9 @@ const Register = () => {
 
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/');
+            navigate(inviteToken ? `/accept-invite?token=${encodeURIComponent(inviteToken)}` : '/');
         }
-    }, [isAuthenticated, navigate]);
+    }, [inviteToken, isAuthenticated, navigate]);
 
     const onChange = e => setUser({ ...user, [e.target.name]: e.target.value });
 
@@ -32,7 +34,8 @@ const Register = () => {
         } else {
             try {
                 await register({ firstName, email, password });
-                navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+                const inviteSuffix = inviteToken ? `&invite=${encodeURIComponent(inviteToken)}` : '';
+                navigate(`/verify-otp?email=${encodeURIComponent(email)}${inviteSuffix}`);
             } catch (err) {
                 setError(err.response?.data?.msg || 'Registration failed');
             }
@@ -53,9 +56,12 @@ const Register = () => {
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                         Already have an account?{' '}
-                        <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
+                        <Link to={inviteToken ? `/login?invite=${encodeURIComponent(inviteToken)}` : '/login'} className="font-medium text-primary-600 hover:text-primary-500">
                             Sign in
                         </Link>
+                    </p>
+                    <p className="mt-3 text-xs text-gray-500">
+                        Your first workspace will be created automatically using your name.
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={onSubmit}>

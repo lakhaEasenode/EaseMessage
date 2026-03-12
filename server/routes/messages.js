@@ -14,9 +14,10 @@ const { emitToUser } = require('../socket');
 // @access  Private
 router.get('/conversations', auth, async (req, res) => {
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         // 1. Get the user's contact IDs first to scope the aggregation
         const userContacts = await Contact.find({
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false
         }).select('_id');
         const userContactIds = userContacts.map(c => c._id);
@@ -60,7 +61,7 @@ router.get('/conversations', auth, async (req, res) => {
         const contactIds = Object.keys(messageMap).map(id => new mongoose.Types.ObjectId(id));
         const contacts = await Contact.find({
             _id: { $in: contactIds },
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false
         }).populate('lists', 'name');
 
@@ -90,10 +91,11 @@ router.get('/conversations', auth, async (req, res) => {
 // @access  Private
 router.get('/:contactId', auth, async (req, res) => {
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         // Verify the contact belongs to the authenticated user
         const contact = await Contact.findOne({
             _id: req.params.contactId,
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false
         });
         if (!contact) {
@@ -138,10 +140,11 @@ router.post('/send', auth, async (req, res) => {
     const { contactId, type, content, templateData } = req.body;
 
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         // Verify the contact belongs to the authenticated user
         const contact = await Contact.findOne({
             _id: contactId,
-            userId: req.user.id,
+            userId: scopeUserId,
             isDeleted: false
         });
         if (!contact) {
@@ -175,7 +178,7 @@ router.post('/send', auth, async (req, res) => {
 
         // Find the DEFAULT phone number for this user
         const phoneRecord = await WhatsAppPhoneNumber.findOne({
-            userId: req.user.id,
+            userId: scopeUserId,
             isDefault: true
         });
 

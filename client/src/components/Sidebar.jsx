@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Megaphone, MessageSquare, Settings, MessageCircle, FileText, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { LayoutDashboard, Users, Megaphone, MessageSquare, Settings, MessageCircle, FileText, ChevronLeft, ChevronRight, X, CreditCard } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -11,6 +11,7 @@ const Sidebar = ({ mobile, onClose }) => {
         { icon: MessageSquare, label: 'Inbox', path: '/inbox' },
         { icon: MessageCircle, label: 'WhatsApp Accounts', path: '/whatsapp-accounts' },
         { icon: FileText, label: 'Templates', path: '/templates' },
+        { icon: CreditCard, label: 'Pricing', path: '/pricing' },
     ];
 
     // Force expanded on mobile

@@ -9,7 +9,8 @@ const Contact = require('../models/Contact');
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const lists = await List.findActive({ userId: req.user.id })
+        const scopeUserId = req.scopeUserId || req.user.id;
+        const lists = await List.findActive({ userId: scopeUserId })
             .sort({ createdAt: -1 })
             .populate({
                 path: 'contacts',
@@ -38,7 +39,7 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const list = await List.findOne({
             _id: req.params.id,
-            userId: req.user.id,
+            userId: req.scopeUserId || req.user.id,
             isDeleted: false
         }).populate('contacts', 'firstName lastName phoneNumber email');
 
@@ -70,7 +71,7 @@ router.post('/', auth, async (req, res) => {
         const newList = new List({
             name,
             description,
-            userId: req.user.id
+            userId: req.scopeUserId || req.user.id
         });
 
         const list = await newList.save();
@@ -90,7 +91,7 @@ router.put('/:id', auth, async (req, res) => {
     try {
         let list = await List.findOne({
             _id: req.params.id,
-            userId: req.user.id,
+            userId: req.scopeUserId || req.user.id,
             isDeleted: false
         });
 
@@ -116,7 +117,7 @@ router.delete('/:id', auth, async (req, res) => {
     try {
         const list = await List.findOne({
             _id: req.params.id,
-            userId: req.user.id,
+            userId: req.scopeUserId || req.user.id,
             isDeleted: false
         });
 

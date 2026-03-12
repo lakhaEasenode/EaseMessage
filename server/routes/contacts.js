@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Contact = require('../models/Contact');
 const List = require('../models/List');
+const User = require('../models/User');
 const multer = require('multer');
 const csv = require('csv-parser');
 const stream = require('stream');
@@ -13,11 +14,25 @@ const upload = multer({ storage: multer.memoryStorage() });
 // @desc    Upload CSV and bulk create contacts
 // @access  Private
 router.post('/upload', [auth, upload.single('file')], async (req, res) => {
+    const scopeUserId = req.scopeUserId || req.user.id;
     if (!req.file) {
         console.log('Upload attempted but no file found in req.file');
         return res.status(400).json({ msg: 'No file uploaded' });
     }
     console.log('File received:', req.file.originalname, req.file.mimetype, req.file.size);
+
+    try {
+        const userDoc = await User.findById(scopeUserId);
+        const limit = userDoc?.subscription?.contactLimit || 100;
+        const currentCount = await Contact.countDocuments({ userId: scopeUserId, isDeleted: false });
+
+        // We will check the limit again after parsing csv length
+        req.userLimit = limit;
+        req.currentContactCount = currentCount;
+    } catch (err) {
+        console.error('Error fetching user for limits:', err);
+        return res.status(500).json({ msg: 'Server error checking limits' });
+    }
 
     // Parse listIds from body (sent as JSON string)
     let listIds = [];
@@ -49,10 +64,15 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
         .on('end', async () => {
             console.log(`Parsed ${results.length} rows`);
             if (results.length > 0) console.log('Sample Row:', results[0]);
+
+            if (req.currentContactCount + results.length > req.userLimit) {
+                return res.status(403).json({ msg: `Upload would exceed your contact limit of ${req.userLimit}. You currently have ${req.currentContactCount} contacts. Please upgrade your plan.` });
+            }
+
             try {
                 const contactsToInsert = [];
                 // optimization: fetch all existing phone numbers for this user
-                const existingContacts = await Contact.find({ userId: req.user.id, isDeleted: false }).select('phoneNumber');
+                const existingContacts = await Contact.find({ userId: scopeUserId, isDeleted: false }).select('phoneNumber');
                 const existingPhoneSet = new Set(existingContacts.map(c => normalizePhone(c.phoneNumber)));
 
                 for (const row of results) {
@@ -79,7 +99,7 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
                     }
 
                     contactsToInsert.push({
-                        userId: req.user.id,
+                        userId: scopeUserId,
                         firstName: firstName,
                         lastName: row.lastName || row.lastname || row['Last Name'] || '',
                         countryCode: row.countryCode || '91', // Default to 91 as requested
@@ -134,7 +154,7 @@ router.post('/upload', [auth, upload.single('file')], async (req, res) => {
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const query = { userId: req.user.id };
+        const query = { userId: req.scopeUserId || req.user.id };
 
         // Optional list filter
         if (req.query.listId) {
@@ -164,7 +184,7 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const contact = await Contact.findOne({
             _id: req.params.id,
-            userId: req.user.id,
+            userId: req.scopeUserId || req.user.id,
             isDeleted: false
         }).populate({ path: 'lists', match: { isDeleted: false }, select: 'name' });
 
@@ -189,6 +209,7 @@ router.post('/', auth, async (req, res) => {
     const { firstName, lastName, countryCode, phoneNumber, email, companyName, sheetName, tags, optedIn, listIds } = req.body;
 
     try {
+        const scopeUserId = req.scopeUserId || req.user.id;
         if (!firstName || !phoneNumber) {
             return res.status(400).json({ msg: 'First name and phone number are required' });
         }
@@ -197,9 +218,17 @@ router.post('/', auth, async (req, res) => {
             return res.status(400).json({ msg: 'Contact must opt-in to receive messages' });
         }
 
+        const userDoc = await User.findById(scopeUserId);
+        const limit = userDoc?.subscription?.contactLimit || 100;
+        const currentCount = await Contact.countDocuments({ userId: scopeUserId, isDeleted: false });
+
+        if (currentCount >= limit) {
+            return res.status(403).json({ msg: `Contact limit reached. Your plan allows up to ${limit} contacts. Please upgrade.` });
+        }
+
         // Check for existing active contact (duplicate)
         const existingActive = await Contact.findOne({
-            userId: req.user.id,
+            userId: scopeUserId,
             countryCode: countryCode || '91',
             phoneNumber,
             isDeleted: false
@@ -211,7 +240,7 @@ router.post('/', auth, async (req, res) => {
 
         // Check if a soft-deleted contact exists — restore it instead of creating a new one
         const deletedContact = await Contact.findOne({
-            userId: req.user.id,
+            userId: scopeUserId,
             countryCode: countryCode || '91',
             phoneNumber,
             isDeleted: true
@@ -233,7 +262,7 @@ router.post('/', auth, async (req, res) => {
             contact = await deletedContact.save();
         } else {
             const newContact = new Contact({
-                userId: req.user.id,
+                userId: scopeUserId,
                 firstName,
                 lastName,
                 countryCode: countryCode || '91',
@@ -280,7 +309,7 @@ router.put('/:id', auth, async (req, res) => {
     try {
         let contact = await Contact.findOne({
             _id: req.params.id,
-            userId: req.user.id,
+            userId: req.scopeUserId || req.user.id,
             isDeleted: false
         });
 
@@ -345,7 +374,7 @@ router.put('/:id/status', auth, async (req, res) => {
     }
 
     try {
-        const contact = await Contact.findOne({ _id: req.params.id, userId: req.user.id });
+        const contact = await Contact.findOne({ _id: req.params.id, userId: req.scopeUserId || req.user.id });
         if (!contact) return res.status(404).json({ msg: 'Contact not found' });
 
         contact.conversationStatus = status;
@@ -364,7 +393,7 @@ router.delete('/:id', auth, async (req, res) => {
     try {
         const contact = await Contact.findOne({
             _id: req.params.id,
-            userId: req.user.id,
+            userId: req.scopeUserId || req.user.id,
             isDeleted: false
         });
 
