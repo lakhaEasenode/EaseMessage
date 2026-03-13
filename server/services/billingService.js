@@ -13,7 +13,7 @@ const { sendBillingReminderEmail } = require('./emailService');
 const { StripeInvoiceDocumentProvider, ZohoInvoiceDocumentProvider } = require('./invoiceDocumentProvider');
 const { getFrontendBaseUrl } = require('../config/publicUrls');
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || 'dummy_id',
     key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret'
