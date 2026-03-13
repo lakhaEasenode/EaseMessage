@@ -11,10 +11,12 @@ const {
     getWorkspaceBillingSummary,
     listWorkspaceInvoices,
     createStripeCheckoutSession,
+    changeWorkspacePlan,
     createIndiaSubscription,
     createIndiaPlanChange,
     createPortalSession,
     cancelWorkspaceSubscription,
+    resumeWorkspaceSubscription,
     createOrRefreshRazorpayPayLinkForInvoice,
     handleStripeWebhook,
     handleRazorpayWebhook,
@@ -140,6 +142,22 @@ router.post('/checkout/stripe-subscription', auth, async (req, res) => {
     }
 });
 
+router.post('/change-plan', auth, async (req, res) => {
+    try {
+        const workspaceId = getWorkspaceId(req);
+        const result = await changeWorkspacePlan({
+            workspaceId,
+            planName: req.body.planName,
+            billingCycle: req.body.billingCycle
+        });
+
+        res.json(result);
+    } catch (err) {
+        console.error('Billing change-plan error:', err.message);
+        res.status(400).json({ msg: getErrorMessage(err, 'Failed to change plan') });
+    }
+});
+
 router.post('/enterprise-request', auth, async (req, res) => {
     try {
         const workspaceId = getWorkspaceId(req);
@@ -220,6 +238,17 @@ router.post('/cancel', auth, async (req, res) => {
     } catch (err) {
         console.error('Billing cancel error:', err.message);
         res.status(400).json({ msg: err.message || 'Failed to cancel subscription' });
+    }
+});
+
+router.post('/resume', auth, async (req, res) => {
+    try {
+        const workspaceId = getWorkspaceId(req);
+        const subscription = await resumeWorkspaceSubscription({ workspaceId });
+        res.json({ subscription });
+    } catch (err) {
+        console.error('Billing resume error:', err.message);
+        res.status(400).json({ msg: err.message || 'Failed to resume subscription' });
     }
 });
 

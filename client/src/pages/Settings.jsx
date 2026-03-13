@@ -257,6 +257,11 @@ const Settings = () => {
     };
 
     const handleCancelSubscription = async () => {
+        const confirmed = window.confirm('Cancel this subscription at the end of the current billing period?');
+        if (!confirmed) {
+            return;
+        }
+
         try {
             await axios.post(`${API_URL}/billing/cancel`, {}, getAuthConfig());
             await refreshWorkspaces();
@@ -264,6 +269,17 @@ const Settings = () => {
             showMsg('success', 'Subscription will cancel at period end');
         } catch (err) {
             showMsg('error', err.response?.data?.msg || 'Failed to cancel subscription');
+        }
+    };
+
+    const handleResumeSubscription = async () => {
+        try {
+            await axios.post(`${API_URL}/billing/resume`, {}, getAuthConfig());
+            await refreshWorkspaces();
+            await fetchWorkspaceData();
+            showMsg('success', 'Subscription resumed successfully');
+        } catch (err) {
+            showMsg('error', err.response?.data?.msg || 'Failed to resume subscription');
         }
     };
 
@@ -325,14 +341,14 @@ const Settings = () => {
 
         setLoadingPlan(plan.name);
         try {
-            if (isINRWorkspace && billing?.stripeSubscriptionId) {
-                const res = await axios.post(`${API_URL}/billing/india/change-plan`, { planName: plan.name, billingCycle }, getAuthConfig());
+            if (billing?.stripeSubscriptionId) {
+                const res = await axios.post(`${API_URL}/billing/change-plan`, { planName: plan.name, billingCycle }, getAuthConfig());
                 await loadUser();
                 await fetchWorkspaceData();
                 if (res.data?.paymentUrl) {
                     window.open(res.data.paymentUrl, '_blank', 'noopener,noreferrer');
                 } else {
-                    showMsg('success', 'Plan updated successfully');
+                    showMsg('success', isINRWorkspace ? 'Plan updated successfully' : 'Plan updated with prorated billing');
                 }
             } else {
                 const res = await axios.post(`${API_URL}/billing/checkout/stripe-subscription`, { planName: plan.name, billingCycle }, getAuthConfig());
@@ -645,6 +661,11 @@ const Settings = () => {
                                 <p className="mt-2 text-2xl font-bold text-gray-900">{billing?.plan || 'Free'}</p>
                                 <p className="mt-1 text-sm text-gray-600">Status: <span className="capitalize">{billing?.status || 'inactive'}</span></p>
                                 <p className="mt-1 text-sm text-gray-600">Renewal: <span className="font-medium text-gray-900">{billing?.currentPeriodEnd ? new Date(billing.currentPeriodEnd).toLocaleDateString() : 'Not scheduled'}</span></p>
+                                {billing?.cancelAtPeriodEnd && (
+                                    <p className="mt-2 text-xs font-medium text-amber-700">
+                                        This subscription is set to cancel at the end of the current period.
+                                    </p>
+                                )}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
@@ -696,13 +717,22 @@ const Settings = () => {
                                             View Invoice
                                         </a>
                                     )}
-                                    {billing?.stripeSubscriptionId && (
+                                    {billing?.stripeSubscriptionId && !billing?.cancelAtPeriodEnd && (
                                         <button
                                             type="button"
                                             onClick={handleCancelSubscription}
                                             className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                                         >
                                             Cancel at Period End
+                                        </button>
+                                    )}
+                                    {billing?.stripeSubscriptionId && billing?.cancelAtPeriodEnd && (
+                                        <button
+                                            type="button"
+                                            onClick={handleResumeSubscription}
+                                            className="rounded-lg border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                        >
+                                            Resume Services
                                         </button>
                                     )}
                                 </div>
@@ -794,7 +824,7 @@ const Settings = () => {
                                 {plans.filter((plan) => plan.name !== 'Enterprise').map((plan) => {
                                     const price = isINRWorkspace ? plan.prices?.inr?.[billingCycle]?.amount : plan.prices?.usd?.[billingCycle]?.amount;
                                     const symbol = isINRWorkspace ? '₹' : '$';
-                                    const isCurrentPlan = billing?.plan === plan.name;
+                                    const isCurrentPlan = billing?.plan === plan.name && (billing?.billingCycle || 'monthly') === billingCycle;
 
                                     return (
                                         <div

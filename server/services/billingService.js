@@ -34,6 +34,64 @@ const normalizePlanKey = (planName = 'Free') => BILLING_PLANS[planName]?.key || 
 
 const toDate = (unixSeconds) => unixSeconds ? new Date(unixSeconds * 1000) : null;
 
+const getSubscriptionPeriodStart = (subscription) => (
+    subscription?.current_period_start
+    || subscription?.latest_invoice?.lines?.data?.[0]?.period?.start
+    || subscription?.latest_invoice?.period_start
+    || null
+);
+
+const getSubscriptionPeriodEnd = (subscription) => (
+    subscription?.current_period_end
+    || subscription?.latest_invoice?.lines?.data?.[0]?.period?.end
+    || subscription?.latest_invoice?.period_end
+    || null
+);
+
+const getSubscriptionBillingCycle = (subscription) => {
+    const interval = subscription?.items?.data?.[0]?.price?.recurring?.interval;
+    if (interval === 'year') {
+        return 'yearly';
+    }
+    if (interval === 'month') {
+        return 'monthly';
+    }
+    return subscription?.metadata?.billingCycle || 'monthly';
+};
+
+const getPlanKeyFromPriceId = async (priceId = '') => {
+    if (!priceId) {
+        return null;
+    }
+
+    const dbPlan = await BillingPlan.findOne({
+        $or: [
+            { 'prices.usd.monthly.stripePriceId': priceId },
+            { 'prices.usd.yearly.stripePriceId': priceId },
+            { 'prices.inr.monthly.stripePriceId': priceId },
+            { 'prices.inr.yearly.stripePriceId': priceId }
+        ]
+    }).select('key');
+
+    if (dbPlan?.key) {
+        return dbPlan.key;
+    }
+
+    for (const plan of Object.values(BILLING_PLANS)) {
+        const matches =
+            plan.prices?.usd?.monthly?.priceId === priceId
+            || plan.prices?.usd?.yearly?.priceId === priceId
+            || plan.prices?.inr?.monthly?.priceId === priceId
+            || plan.prices?.inr?.yearly?.priceId === priceId;
+
+        if (matches) {
+            return plan.key;
+        }
+    }
+
+    return null;
+};
+
 const normalizeStatus = (status = '') => {
     if (!status) return 'inactive';
     if (status === 'trialing') return 'active';
@@ -137,6 +195,7 @@ const serializeBilling = (billing, latestInvoice = null) => ({
     contactLimit: billing?.contactLimit ?? 100,
     currentPeriodStart: billing?.currentPeriodStart || null,
     currentPeriodEnd: billing?.currentPeriodEnd || null,
+    cancelAtPeriodEnd: Boolean(billing?.cancelAtPeriodEnd),
     graceEndsAt: billing?.graceEndsAt || null,
     lastInvoiceId: billing?.lastInvoiceId || '',
     lastInvoiceStatus: billing?.lastInvoiceStatus || '',
@@ -174,7 +233,8 @@ const syncWorkspaceBillingFromStripeSubscription = async ({ workspaceId, subscri
     }
 
     const billing = await ensureWorkspaceBilling(workspace);
-    const detectedPlan = planName || subscription?.metadata?.planName || billing.plan || 'Free';
+    const activePriceId = subscription?.items?.data?.[0]?.price?.id || '';
+    const detectedPlan = await getPlanKeyFromPriceId(activePriceId) || planName || subscription?.metadata?.planName || billing.plan || 'Free';
     const planConfig = await getCatalogPlan(detectedPlan);
     const contactLimit = planConfig.contactLimit || getPlanConfig(detectedPlan).contactLimit;
     const invoiceId = typeof subscription.latest_invoice === 'string'
@@ -184,14 +244,16 @@ const syncWorkspaceBillingFromStripeSubscription = async ({ workspaceId, subscri
     billing.countryCode = countryCode || workspace.countryCode || billing.countryCode;
     billing.currency = subscription.currency || getBillingCurrency(billing.countryCode);
     billing.collectionMode = subscription.collection_method === 'send_invoice' ? 'manual_invoice' : 'autopay';
+    billing.billingCycle = getSubscriptionBillingCycle(subscription);
     billing.plan = detectedPlan;
     billing.status = normalizeStatus(subscription.status);
     billing.contactLimit = contactLimit;
     billing.stripeCustomerId = subscription.customer?.id || subscription.customer || billing.stripeCustomerId;
     billing.stripeSubscriptionId = subscription.id;
     billing.stripeSubscriptionItemId = subscription.items?.data?.[0]?.id || billing.stripeSubscriptionItemId;
-    billing.currentPeriodStart = toDate(subscription.current_period_start);
-    billing.currentPeriodEnd = toDate(subscription.current_period_end);
+    billing.currentPeriodStart = toDate(getSubscriptionPeriodStart(subscription));
+    billing.currentPeriodEnd = toDate(getSubscriptionPeriodEnd(subscription));
+    billing.cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
     billing.lastInvoiceId = invoiceId;
     if (billing.status === 'past_due' && !billing.graceEndsAt) {
         billing.graceEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -320,6 +382,45 @@ const createIndiaPaymentLinkForIntent = async ({ workspaceId, planName, billingC
     const { workspace, billing, customerId } = await getOrCreateStripeCustomer(workspaceId);
     const price = await getCatalogPriceConfig({ planName, countryCode: 'IN', billingCycle });
     const owner = await getWorkspaceOwner(workspaceId);
+    let amount = Math.round(Number(price.amount) * 100);
+
+    if (action === 'change_plan' && billing.stripeSubscriptionId) {
+        const currentSubscription = await stripe.subscriptions.retrieve(billing.stripeSubscriptionId);
+        const itemId = currentSubscription.items?.data?.[0]?.id || billing.stripeSubscriptionItemId;
+        const upcomingInvoice = await stripe.invoices.retrieveUpcoming({
+            customer: customerId,
+            subscription: billing.stripeSubscriptionId,
+            subscription_items: [{ id: itemId, price: price.priceId }],
+            subscription_proration_behavior: 'always_invoice'
+        });
+
+        amount = Math.max(upcomingInvoice.amount_due ?? 0, 0);
+    }
+
+    if (action === 'change_plan' && amount === 0) {
+        const result = await processIndiaIntentAfterPayment({
+            intentId: (await IndiaBillingIntent.create({
+                workspaceId,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: billing.stripeSubscriptionId || '',
+                stripeSubscriptionItemId: billing.stripeSubscriptionItemId || '',
+                action,
+                planName,
+                billingCycle,
+                amount: 0,
+                currency: 'inr',
+                status: 'paid',
+                razorpayPaymentStatus: 'paid'
+            }))._id,
+            razorpayPaymentId: ''
+        });
+
+        return {
+            billing: await getWorkspaceBillingSummary(workspaceId),
+            intent: result.intent,
+            paymentUrl: ''
+        };
+    }
 
     const intent = await IndiaBillingIntent.create({
         workspaceId,
@@ -329,7 +430,7 @@ const createIndiaPaymentLinkForIntent = async ({ workspaceId, planName, billingC
         action,
         planName,
         billingCycle,
-        amount: Math.round(Number(price.amount) * 100),
+        amount,
         currency: 'inr'
     });
 
@@ -406,6 +507,67 @@ const createIndiaPlanChange = async ({ workspaceId, planName, billingCycle }) =>
     });
 };
 
+const changeWorkspacePlan = async ({ workspaceId, planName, billingCycle }) => {
+    const billing = await ensureWorkspaceBilling(workspaceId);
+    if (!billing.stripeSubscriptionId) {
+        throw new Error('No Stripe subscription found');
+    }
+
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+        throw new Error('Workspace not found');
+    }
+
+    if ((workspace.countryCode || '') === 'IN') {
+        return createIndiaPlanChange({ workspaceId, planName, billingCycle });
+    }
+
+    const price = await getCatalogPriceConfig({
+        planName,
+        countryCode: workspace.countryCode || '',
+        billingCycle
+    });
+
+    if (!price.priceId) {
+        throw new Error(`Stripe price not configured for ${planName} (${price.currency}/${billingCycle})`);
+    }
+
+    const currentSubscription = await stripe.subscriptions.retrieve(billing.stripeSubscriptionId, {
+        expand: ['latest_invoice']
+    });
+    const itemId = currentSubscription.items?.data?.[0]?.id;
+
+    const subscription = await stripe.subscriptions.update(billing.stripeSubscriptionId, {
+        cancel_at_period_end: false,
+        proration_behavior: 'always_invoice',
+        items: [{ id: itemId, price: price.priceId }],
+        metadata: {
+            ...(currentSubscription.metadata || {}),
+            workspaceId: workspaceId.toString(),
+            planName,
+            billingCycle,
+            countryCode: workspace.countryCode || ''
+        },
+        expand: ['latest_invoice']
+    });
+
+    const synced = await syncWorkspaceBillingFromStripeSubscription({
+        workspaceId,
+        subscription,
+        planName,
+        countryCode: workspace.countryCode || ''
+    });
+
+    if (subscription.latest_invoice?.id) {
+        await upsertInvoiceFromStripe(workspaceId, subscription.latest_invoice);
+    }
+
+    return {
+        subscription,
+        billing: serializeBilling(synced, subscription.latest_invoice ? await BillingInvoice.findOne({ stripeInvoiceId: subscription.latest_invoice.id }) : null)
+    };
+};
+
 const createPortalSession = async ({ workspaceId, returnUrl }) => {
     const billing = await ensureWorkspaceBilling(workspaceId);
     if (!billing.stripeCustomerId) {
@@ -426,6 +588,26 @@ const cancelWorkspaceSubscription = async ({ workspaceId }) => {
 
     const subscription = await stripe.subscriptions.update(billing.stripeSubscriptionId, {
         cancel_at_period_end: true
+    });
+
+    await syncWorkspaceBillingFromStripeSubscription({
+        workspaceId,
+        subscription,
+        planName: billing.plan,
+        countryCode: billing.countryCode
+    });
+
+    return subscription;
+};
+
+const resumeWorkspaceSubscription = async ({ workspaceId }) => {
+    const billing = await ensureWorkspaceBilling(workspaceId);
+    if (!billing.stripeSubscriptionId) {
+        throw new Error('No Stripe subscription found');
+    }
+
+    const subscription = await stripe.subscriptions.update(billing.stripeSubscriptionId, {
+        cancel_at_period_end: false
     });
 
     await syncWorkspaceBillingFromStripeSubscription({
@@ -581,7 +763,7 @@ const processIndiaIntentAfterPayment = async ({ intentId, razorpayPaymentId }) =
             collection_method: 'send_invoice',
             days_until_due: 7,
             cancel_at_period_end: false,
-            proration_behavior: 'none',
+            proration_behavior: 'always_invoice',
             items: [{ id: itemId, price: price.priceId }],
             metadata: {
                 ...(currentSubscription.metadata || {}),
@@ -638,7 +820,25 @@ const processIndiaIntentAfterPayment = async ({ intentId, razorpayPaymentId }) =
 };
 
 const getWorkspaceBillingSummary = async (workspaceId) => {
-    const billing = await ensureWorkspaceBilling(workspaceId);
+    let billing = await ensureWorkspaceBilling(workspaceId);
+    if (billing.stripeSubscriptionId) {
+        try {
+            const subscription = await stripe.subscriptions.retrieve(billing.stripeSubscriptionId, {
+                expand: ['latest_invoice']
+            });
+            billing = await syncWorkspaceBillingFromStripeSubscription({
+                workspaceId,
+                subscription,
+                planName: billing.plan,
+                countryCode: billing.countryCode
+            });
+            if (subscription.latest_invoice?.id) {
+                await upsertInvoiceFromStripe(workspaceId, subscription.latest_invoice);
+            }
+        } catch (_error) {
+            // Keep the saved billing snapshot if Stripe refresh is unavailable.
+        }
+    }
     const latestInvoice = await BillingInvoice.findOne({ workspaceId }).sort({ createdAt: -1 });
     return serializeBilling(billing, latestInvoice);
 };
@@ -872,33 +1072,72 @@ const syncBillingPlansToStripe = async () => {
             { new: true, upsert: true, setDefaultsOnInsert: true }
         );
 
+        if (definition.key === 'Enterprise') {
+            for (const currency of ['usd', 'inr']) {
+                for (const billingCycle of ['monthly', 'yearly']) {
+                    const configuredPrice = definition.prices[currency][billingCycle];
+                    planDoc.set(`prices.${currency}.${billingCycle}`, {
+                        amount: configuredPrice.amount,
+                        stripeProductId: '',
+                        stripePriceId: ''
+                    });
+                }
+            }
+            await planDoc.save();
+            continue;
+        }
+
+        const canonicalProductName = `EaseMessage ${definition.name}`;
+        const candidateProducts = await stripe.products.list({
+            active: true,
+            limit: 100
+        });
+
+        let canonicalProduct = candidateProducts.data.find((product) =>
+            product.metadata?.planKey === definition.key
+            && !product.metadata?.currency
+            && !product.metadata?.billingCycle
+        );
+
+        if (!canonicalProduct) {
+            canonicalProduct = await stripe.products.create({
+                name: canonicalProductName,
+                description: definition.description || `${definition.name} plan`,
+                metadata: {
+                    planKey: definition.key
+                }
+            });
+        } else if (canonicalProduct.name !== canonicalProductName || canonicalProduct.description !== (definition.description || `${definition.name} plan`)) {
+            canonicalProduct = await stripe.products.update(canonicalProduct.id, {
+                name: canonicalProductName,
+                description: definition.description || `${definition.name} plan`,
+                metadata: {
+                    ...canonicalProduct.metadata,
+                    planKey: definition.key
+                }
+            });
+        }
+
         for (const currency of ['usd', 'inr']) {
             for (const billingCycle of ['monthly', 'yearly']) {
                 const configuredPrice = definition.prices[currency][billingCycle];
                 const unitAmount = Number(configuredPrice.amount) * 100;
                 if (unitAmount < 0) continue;
 
-                let productId = planDoc.prices?.[currency]?.[billingCycle]?.stripeProductId || '';
+                const productId = canonicalProduct.id;
                 let priceId = planDoc.prices?.[currency]?.[billingCycle]?.stripePriceId || '';
-
-                if (!productId) {
-                    const product = await stripe.products.create({
-                        name: `EaseMessage ${definition.name} ${currency.toUpperCase()} ${billingCycle}`,
-                        description: definition.description || `${definition.name} plan`,
-                        metadata: {
-                            planKey: definition.key,
-                            currency,
-                            billingCycle
-                        }
-                    });
-                    productId = product.id;
-                }
 
                 let validPriceId = '';
                 if (priceId) {
                     try {
                         const existingPrice = await stripe.prices.retrieve(priceId);
-                        if (existingPrice.unit_amount === unitAmount && existingPrice.currency === currency) {
+                        const interval = billingCycle === 'monthly' ? 'month' : 'year';
+                        if (
+                            existingPrice.product === productId
+                            && existingPrice.unit_amount === unitAmount
+                            && existingPrice.currency === currency
+                            && existingPrice.recurring?.interval === interval
+                        ) {
                             validPriceId = existingPrice.id;
                         }
                     } catch (err) {
@@ -907,9 +1146,7 @@ const syncBillingPlansToStripe = async () => {
                 }
 
                 if (!validPriceId) {
-                    const recurring = definition.key === 'Free'
-                        ? undefined
-                        : { interval: billingCycle === 'monthly' ? 'month' : 'year' };
+                    const recurring = { interval: billingCycle === 'monthly' ? 'month' : 'year' };
                     const createdPrice = await stripe.prices.create({
                         currency,
                         unit_amount: unitAmount,
@@ -933,6 +1170,21 @@ const syncBillingPlansToStripe = async () => {
         }
 
         await planDoc.save();
+
+        const legacyProducts = candidateProducts.data.filter((product) =>
+            product.id !== canonicalProduct.id
+            && (
+                (product.metadata?.planKey === definition.key)
+                || product.name === canonicalProductName
+                || product.name.startsWith(`${canonicalProductName} `)
+            )
+        );
+
+        for (const legacyProduct of legacyProducts) {
+            if (legacyProduct.active) {
+                await stripe.products.update(legacyProduct.id, { active: false });
+            }
+        }
     }
 };
 
@@ -943,10 +1195,12 @@ module.exports = {
     getWorkspaceBillingSummary,
     listWorkspaceInvoices,
     createStripeCheckoutSession,
+    changeWorkspacePlan,
     createIndiaSubscription,
     createIndiaPlanChange,
     createPortalSession,
     cancelWorkspaceSubscription,
+    resumeWorkspaceSubscription,
     createOrRefreshRazorpayPayLinkForInvoice,
     markInvoicePaidFromRazorpay,
     handleStripeWebhook,

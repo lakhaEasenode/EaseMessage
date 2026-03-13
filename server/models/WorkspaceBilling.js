@@ -15,6 +15,7 @@ const WorkspaceBillingSchema = new mongoose.Schema({
     contactLimit: { type: Number, default: 100 },
     currentPeriodStart: { type: Date, default: null },
     currentPeriodEnd: { type: Date, default: null },
+    cancelAtPeriodEnd: { type: Boolean, default: false },
     graceEndsAt: { type: Date, default: null },
     lastInvoiceId: { type: String, default: '' },
     lastInvoiceStatus: { type: String, default: '' },
