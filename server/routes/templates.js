@@ -237,7 +237,8 @@ router.post('/', auth, async (req, res) => {
         // Handle Axios Error
         if (err.response) {
             console.error('Graph API Error Data:', err.response.data);
-            const errorMsg = err.response.data.error?.message || 'Failed to create template on WhatsApp.';
+            const errorData = err.response.data.error;
+            const errorMsg = errorData?.error_user_msg || errorData?.message || 'Failed to create template on WhatsApp.';
             return res.status(400).json({ msg: errorMsg });
         }
         res.status(500).send('Server error');
