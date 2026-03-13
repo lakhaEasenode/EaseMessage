@@ -193,6 +193,25 @@ router.post('/', auth, async (req, res) => {
             }
         }
 
+        // 4b. Add example sample values for components with variables (required by Meta)
+        for (const comp of graphComponents) {
+            const varMatches = (comp.text || '').match(/{{(\d+)}}/g);
+            if (!varMatches || varMatches.length === 0) continue;
+
+            // Build sample values from variableDefinitions or use generic placeholders
+            const samples = varMatches.map(v => {
+                const idx = parseInt(v.replace(/[{}]/g, ''));
+                const def = (variableDefinitions || []).find(d => d.index === idx);
+                return def?.fallback || def?.attribute || `Sample${idx}`;
+            });
+
+            if (comp.type === 'BODY' && !comp.example) {
+                comp.example = { body_text: [samples] };
+            } else if (comp.type === 'HEADER' && comp.format === 'TEXT' && !comp.example) {
+                comp.example = { header_text: samples };
+            }
+        }
+
         const graphPayload = {
             name: sanitizedName,
             category: category,
