@@ -144,6 +144,7 @@ router.get('/sync', auth, async (req, res) => {
 // @desc    Create a new template via Facebook Graph API
 // @access  Private
 router.post('/', auth, async (req, res) => {
+    const scopeUserId = req.scopeUserId || req.user.id;
     const { name, category, language, body, components, wabaId, variableDefinitions } = req.body;
 
     if (!name || !category || !body) {
@@ -160,9 +161,9 @@ router.post('/', auth, async (req, res) => {
         // 1. Get User's Connected WABA — use specific wabaId if provided
         let wabaAccount;
         if (wabaId) {
-            wabaAccount = await WhatsAppBusinessAccount.findOne({ _id: wabaId, userId: req.user.id });
+            wabaAccount = await WhatsAppBusinessAccount.findOne({ _id: wabaId, userId: scopeUserId });
         } else {
-            wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: req.user.id });
+            wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: scopeUserId });
         }
         if (!wabaAccount || !wabaAccount.accessToken) {
             return res.status(400).json({ msg: 'No connected WhatsApp Business Account found. Please connect one first.' });
