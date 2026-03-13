@@ -150,6 +150,12 @@ router.post('/', auth, async (req, res) => {
         return res.status(400).json({ msg: 'Please provide all required fields' });
     }
 
+    // Meta requires: lowercase letters and underscores only
+    const sanitizedName = name.trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (!sanitizedName) {
+        return res.status(400).json({ msg: 'Template name must contain at least one letter.' });
+    }
+
     try {
         // 1. Get User's Connected WABA — use specific wabaId if provided
         let wabaAccount;
@@ -187,7 +193,7 @@ router.post('/', auth, async (req, res) => {
         }
 
         const graphPayload = {
-            name: name,
+            name: sanitizedName,
             category: category,
             language: language,
             components: graphComponents
@@ -212,7 +218,7 @@ router.post('/', auth, async (req, res) => {
             userId: scopeUserId,
             wabaId: wabaAccount._id,
             template_id: fbData.id,
-            name,
+            name: sanitizedName,
             category,
             language,
             body,
