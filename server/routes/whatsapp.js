@@ -341,10 +341,10 @@ router.post('/webhook', async (req, res) => {
             }
 
             // Handle template status updates from Meta
-            const templateStatusUpdate = value?.message_template_status_update;
-            if (templateStatusUpdate) {
+            const changeField = body.entry[0]?.changes?.[0]?.field;
+            if (changeField === 'message_template_status_update' && value) {
                 const Template = require('../models/Template');
-                const { message_template_id, message_template_name, event, reason } = templateStatusUpdate;
+                const { message_template_id, message_template_name, event, reason } = value;
 
                 console.log(`Template status webhook: ${message_template_name} (${message_template_id}) → ${event}`);
 

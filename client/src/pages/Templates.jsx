@@ -2,11 +2,13 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
 import { Loader2, Plus, Search, Filter, FileText, Copy, AlertCircle, RefreshCw, X, ChevronDown, Check } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import TemplateForm from '../components/TemplateForm';
 import { usePageHeader } from '../context/PageHeaderContext';
 
 const Templates = () => {
     const { token } = useContext(AuthContext);
+    const { on: onSocket } = useSocket();
     const { setHeader } = usePageHeader();
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -59,6 +61,15 @@ const Templates = () => {
             fetchWabaAccounts();
         }
     }, [token]);
+
+    // Listen for real-time template status updates from webhook
+    useEffect(() => {
+        return onSocket('template:status', (data) => {
+            setTemplates(prev => prev.map(t =>
+                t._id === data.templateId ? { ...t, status: data.status } : t
+            ));
+        });
+    }, [onSocket]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
