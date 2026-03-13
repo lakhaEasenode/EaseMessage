@@ -854,6 +854,10 @@ const backfillWorkspaceBillingFromUsers = async () => {
 };
 
 const syncBillingPlansToStripe = async () => {
+    if (!stripe) {
+        console.warn('STRIPE_SECRET_KEY not set — skipping Stripe billing plan sync');
+        return;
+    }
     const catalog = Object.values(BILLING_PLANS);
 
     for (const definition of catalog) {
