@@ -94,13 +94,13 @@ const Pricing = () => {
         };
 
         try {
-            if (isINRWorkspace && currentBilling?.stripeSubscriptionId) {
-                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/billing/india/change-plan`, { planName: plan.name, billingCycle }, config);
+            if (currentBilling?.stripeSubscriptionId) {
+                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/billing/change-plan`, { planName: plan.name, billingCycle }, config);
                 await loadUser();
                 if (res.data?.paymentUrl) {
                     window.open(res.data.paymentUrl, '_blank', 'noopener,noreferrer');
                 } else {
-                    alert('Plan updated. No immediate payment is due right now.');
+                    alert(isINRWorkspace ? 'Plan updated. No immediate payment is due right now.' : 'Plan updated successfully.');
                 }
             } else {
                 const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3301/api'}/billing/checkout/stripe-subscription`, { planName: plan.name, billingCycle }, config);

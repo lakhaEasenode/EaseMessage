@@ -36,11 +36,15 @@ const Layout = () => {
                     </div>
                 )}
 
-                <div className="flex-1 flex flex-col h-screen overflow-hidden w-full relative">
+                <div className="flex-1 flex flex-col h-screen overflow-hidden w-full relative pt-4">
                     <Header onMenuClick={() => setSidebarOpen(true)} />
                     <main
                         key={workspaceKey}
-                        className={`flex-1 ${isInbox ? 'p-0 overflow-hidden' : 'p-2 overflow-auto'} w-full`}
+                        className={`flex-1 ${
+                            isInbox
+                                ? 'p-0 overflow-hidden'
+                                : 'px-2 pb-2 pt-2 overflow-auto'
+                        } w-full`}
                     >
                         <Outlet />
                     </main>

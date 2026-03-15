@@ -51,7 +51,7 @@ const Header = ({ onMenuClick }) => {
     }, []);
 
     return (
-        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-5 md:px-8 flex-shrink-0 z-10 transition-all duration-300">
+        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 md:px-8 flex-shrink-0 z-10 transition-all duration-300">
             {/* Left side — mobile menu + page title */}
             <div className="flex items-center gap-3 min-w-0">
                 <button
