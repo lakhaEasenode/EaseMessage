@@ -144,6 +144,7 @@ router.get('/sync', auth, async (req, res) => {
 // @desc    Create a new template via Facebook Graph API
 // @access  Private
 router.post('/', auth, async (req, res) => {
+    const scopeUserId = req.scopeUserId || req.user.id;
     const { name, category, language, body, components, wabaId, variableDefinitions } = req.body;
 
     if (!name || !category || !body) {
@@ -160,9 +161,9 @@ router.post('/', auth, async (req, res) => {
         // 1. Get User's Connected WABA — use specific wabaId if provided
         let wabaAccount;
         if (wabaId) {
-            wabaAccount = await WhatsAppBusinessAccount.findOne({ _id: wabaId, userId: req.user.id });
+            wabaAccount = await WhatsAppBusinessAccount.findOne({ _id: wabaId, userId: scopeUserId });
         } else {
-            wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: req.user.id });
+            wabaAccount = await WhatsAppBusinessAccount.findOne({ userId: scopeUserId });
         }
         if (!wabaAccount || !wabaAccount.accessToken) {
             return res.status(400).json({ msg: 'No connected WhatsApp Business Account found. Please connect one first.' });
@@ -189,6 +190,25 @@ router.post('/', auth, async (req, res) => {
             if (comp.type === 'HEADER' && MEDIA_FORMATS.includes(comp.format) && comp.headerHandle) {
                 comp.example = { header_handle: [comp.headerHandle] };
                 delete comp.headerHandle;
+            }
+        }
+
+        // 4b. Add example sample values for components with variables (required by Meta)
+        for (const comp of graphComponents) {
+            const varMatches = (comp.text || '').match(/{{(\d+)}}/g);
+            if (!varMatches || varMatches.length === 0) continue;
+
+            // Build sample values from variableDefinitions or use generic placeholders
+            const samples = varMatches.map(v => {
+                const idx = parseInt(v.replace(/[{}]/g, ''));
+                const def = (variableDefinitions || []).find(d => d.index === idx);
+                return def?.fallback || def?.attribute || `Sample${idx}`;
+            });
+
+            if (comp.type === 'BODY' && !comp.example) {
+                comp.example = { body_text: [samples] };
+            } else if (comp.type === 'HEADER' && comp.format === 'TEXT' && !comp.example) {
+                comp.example = { header_text: samples };
             }
         }
 
@@ -236,7 +256,8 @@ router.post('/', auth, async (req, res) => {
         // Handle Axios Error
         if (err.response) {
             console.error('Graph API Error Data:', err.response.data);
-            const errorMsg = err.response.data.error?.message || 'Failed to create template on WhatsApp.';
+            const errorData = err.response.data.error;
+            const errorMsg = errorData?.error_user_msg || errorData?.message || 'Failed to create template on WhatsApp.';
             return res.status(400).json({ msg: errorMsg });
         }
         res.status(500).send('Server error');
