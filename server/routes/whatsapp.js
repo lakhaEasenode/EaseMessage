@@ -6,8 +6,74 @@ const WhatsAppBusinessAccount = require('../models/WhatsAppBusinessAccount');
 const WhatsAppPhoneNumber = require('../models/WhatsAppPhoneNumber');
 const { emitToUser } = require('../socket');
 
+// Shared helper: fetch WABA details + phone numbers from Meta and upsert into DB
+async function syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken) {
+    // 1. Fetch WABA Details
+    const wabaResponse = await axios.get(`https://graph.facebook.com/v24.0/${wabaId}?access_token=${accessToken}`);
+    const wabaData = wabaResponse.data;
+
+    // Check if exists or create new
+    let account = await WhatsAppBusinessAccount.findOne({ wabaId });
+
+    if (account) {
+        account.accessToken = accessToken;
+        account.name = wabaData.name;
+        account.timezoneId = wabaData.timezone_id;
+        account.messageTemplateNamespace = wabaData.message_template_namespace;
+        await account.save();
+    } else {
+        account = new WhatsAppBusinessAccount({
+            userId: scopeUserId,
+            wabaId: wabaData.id,
+            name: wabaData.name,
+            timezoneId: wabaData.timezone_id,
+            messageTemplateNamespace: wabaData.message_template_namespace,
+            accessToken
+        });
+        await account.save();
+    }
+
+    // 2. Fetch Phone Numbers
+    const phoneResponse = await axios.get(`https://graph.facebook.com/v24.0/${wabaId}/phone_numbers`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const phoneNumbers = phoneResponse.data.data;
+    const savedNumbers = [];
+
+    for (const phone of phoneNumbers) {
+        let phoneRecord = await WhatsAppPhoneNumber.findOne({ phoneNumberId: phone.id });
+
+        if (phoneRecord) {
+            phoneRecord.verifiedName = phone.verified_name;
+            phoneRecord.displayPhoneNumber = phone.display_phone_number;
+            phoneRecord.codeVerificationStatus = phone.code_verification_status;
+            phoneRecord.qualityRating = phone.quality_rating;
+            phoneRecord.platformType = phone.platform_type;
+            phoneRecord.throughput = phone.throughput;
+            await phoneRecord.save();
+        } else {
+            phoneRecord = new WhatsAppPhoneNumber({
+                userId: scopeUserId,
+                wabaId: account._id,
+                phoneNumberId: phone.id,
+                verifiedName: phone.verified_name,
+                displayPhoneNumber: phone.display_phone_number,
+                codeVerificationStatus: phone.code_verification_status,
+                qualityRating: phone.quality_rating,
+                platformType: phone.platform_type,
+                throughput: phone.throughput
+            });
+            await phoneRecord.save();
+        }
+        savedNumbers.push(phoneRecord);
+    }
+
+    return { account, phoneNumbers: savedNumbers };
+}
+
 // @route   POST api/whatsapp/connect
-// @desc    Connect a WhatsApp Business Account
+// @desc    Connect a WhatsApp Business Account (manual token entry)
 // @access  Private
 router.post('/connect', auth, async (req, res) => {
     const { wabaId, accessToken } = req.body;
@@ -18,80 +84,102 @@ router.post('/connect', auth, async (req, res) => {
     }
 
     try {
-        // 1. Fetch WABA Details
-        const wabaResponse = await axios.get(`https://graph.facebook.com/v24.0/${wabaId}?access_token=${accessToken}`);
-        const wabaData = wabaResponse.data;
-
-        // Check if exists or create new
-        let account = await WhatsAppBusinessAccount.findOne({ wabaId });
-
-        if (account) {
-            // Update existing
-            account.accessToken = accessToken;
-            account.name = wabaData.name;
-            account.timezoneId = wabaData.timezone_id;
-            account.messageTemplateNamespace = wabaData.message_template_namespace;
-            await account.save();
-        } else {
-            // Create new
-            account = new WhatsAppBusinessAccount({
-                userId: scopeUserId,
-                wabaId: wabaData.id,
-                name: wabaData.name,
-                timezoneId: wabaData.timezone_id,
-                messageTemplateNamespace: wabaData.message_template_namespace,
-                accessToken
-            });
-            await account.save();
-        }
-
-        // 2. Fetch Phone Numbers
-        const phoneResponse = await axios.get(`https://graph.facebook.com/v24.0/${wabaId}/phone_numbers`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-
-        const phoneNumbers = phoneResponse.data.data;
-        const savedNumbers = [];
-
-        for (const phone of phoneNumbers) {
-            let phoneRecord = await WhatsAppPhoneNumber.findOne({ phoneNumberId: phone.id });
-
-            if (phoneRecord) {
-                // Update
-                phoneRecord.verifiedName = phone.verified_name;
-                phoneRecord.displayPhoneNumber = phone.display_phone_number;
-                phoneRecord.codeVerificationStatus = phone.code_verification_status;
-                phoneRecord.qualityRating = phone.quality_rating;
-                phoneRecord.platformType = phone.platform_type;
-                phoneRecord.throughput = phone.throughput;
-                await phoneRecord.save();
-            } else {
-                // Create
-                phoneRecord = new WhatsAppPhoneNumber({
-                    userId: scopeUserId,
-                    wabaId: account._id,
-                    phoneNumberId: phone.id,
-                    verifiedName: phone.verified_name,
-                    displayPhoneNumber: phone.display_phone_number,
-                    codeVerificationStatus: phone.code_verification_status,
-                    qualityRating: phone.quality_rating,
-                    platformType: phone.platform_type,
-                    throughput: phone.throughput
-                });
-                await phoneRecord.save();
-            }
-            savedNumbers.push(phoneRecord);
-        }
+        const { account, phoneNumbers } = await syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken);
 
         res.json({
             msg: 'WhatsApp Account connected successfully',
             account,
-            phoneNumbers: savedNumbers
+            phoneNumbers
         });
-
     } catch (err) {
         console.error(err.message);
         const errorMsg = err.response?.data?.error?.message || 'Failed to connect WhatsApp account';
+        res.status(400).json({ msg: errorMsg });
+    }
+});
+
+// @route   GET api/whatsapp/embedded-signup-config
+// @desc    Return Meta App ID and Config ID for Embedded Signup SDK init
+// @access  Private
+router.get('/embedded-signup-config', auth, (req, res) => {
+    const { META_APP_ID, META_CONFIG_ID } = process.env;
+    if (!META_APP_ID || !META_CONFIG_ID) {
+        return res.status(500).json({ msg: 'Embedded Signup is not configured on the server' });
+    }
+    res.json({ appId: META_APP_ID, configId: META_CONFIG_ID });
+});
+
+// @route   POST api/whatsapp/embedded-signup
+// @desc    Complete Embedded Signup — exchange OAuth code for token, discover WABA, sync
+// @access  Private
+router.post('/embedded-signup', auth, async (req, res) => {
+    const { code } = req.body;
+    const scopeUserId = req.scopeUserId || req.user.id;
+
+    if (!code) {
+        return res.status(400).json({ msg: 'Authorization code is required' });
+    }
+
+    const { META_APP_ID, META_APP_SECRET } = process.env;
+    if (!META_APP_ID || !META_APP_SECRET) {
+        console.error('Missing META_APP_ID or META_APP_SECRET in environment');
+        return res.status(500).json({ msg: 'Server configuration error' });
+    }
+
+    try {
+        // Step 1: Exchange code for access token
+        const tokenResponse = await axios.get('https://graph.facebook.com/v24.0/oauth/access_token', {
+            params: {
+                client_id: META_APP_ID,
+                client_secret: META_APP_SECRET,
+                code
+            }
+        });
+        const userAccessToken = tokenResponse.data.access_token;
+        console.log('Embedded Signup — access token obtained:', userAccessToken.slice(0, 10) + '...');
+
+        // Step 2: Debug token to discover shared WABA and phone numbers
+        const debugResponse = await axios.get('https://graph.facebook.com/v24.0/debug_token', {
+            params: {
+                input_token: userAccessToken,
+                access_token: `${META_APP_ID}|${META_APP_SECRET}`
+            }
+        });
+        const scopes = debugResponse.data.data?.granular_scopes || [];
+
+        const wabaScope = scopes.find(s => s.scope === 'whatsapp_business_management');
+        const wabaId = wabaScope?.target_ids?.[0];
+
+        console.log('Embedded Signup — discovered WABA ID:', wabaId);
+
+        if (!wabaId) {
+            return res.status(400).json({
+                msg: 'No WhatsApp Business Account was shared during signup. Please try again and complete the full signup flow.'
+            });
+        }
+
+        // Step 3: Sync WABA details and phone numbers
+        const { account, phoneNumbers } = await syncWabaAndPhoneNumbers(scopeUserId, wabaId, userAccessToken);
+
+        // Step 4: Subscribe WABA to webhooks (best-effort)
+        try {
+            await axios.post(
+                `https://graph.facebook.com/v24.0/${wabaId}/subscribed_apps`,
+                {},
+                { headers: { Authorization: `Bearer ${userAccessToken}` } }
+            );
+        } catch (subErr) {
+            console.warn('Webhook subscription failed (non-fatal):', subErr.response?.data?.error?.message || subErr.message);
+        }
+
+        res.json({
+            msg: 'WhatsApp Account connected via Embedded Signup',
+            account,
+            phoneNumbers
+        });
+    } catch (err) {
+        console.error('Embedded Signup error:', err.response?.data || err.message);
+        const errorMsg = err.response?.data?.error?.message || 'Failed to complete Embedded Signup';
         res.status(400).json({ msg: errorMsg });
     }
 });

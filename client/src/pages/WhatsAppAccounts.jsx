@@ -4,6 +4,7 @@ import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield } f
 import AuthContext from '../context/AuthContext';
 import WhatsAppHeader from '../components/WhatsAppHeader';
 import { usePageHeader } from '../context/PageHeaderContext';
+import useFacebookSDK from '../hooks/useFacebookSDK';
 
 const WhatsAppAccounts = () => {
     const { token } = useContext(AuthContext);
@@ -18,6 +19,11 @@ const WhatsAppAccounts = () => {
     const [accessToken, setAccessToken] = useState('');
     const [connectLoading, setConnectLoading] = useState(false);
     const [connectError, setConnectError] = useState(null);
+
+    // Embedded Signup State
+    const { isReady: fbReady, loadSDK: loadFacebookSDK, configRef } = useFacebookSDK(token);
+    const [embeddedSignupLoading, setEmbeddedSignupLoading] = useState(false);
+    const [showManualForm, setShowManualForm] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
@@ -58,6 +64,64 @@ const WhatsAppAccounts = () => {
         return () => setHeader({ title: '', subtitle: null, actions: null });
     }, []);
 
+    // Load Facebook SDK when connect modal opens
+    useEffect(() => {
+        if (isConnectModalOpen) {
+            loadFacebookSDK();
+        }
+    }, [isConnectModalOpen, loadFacebookSDK]);
+
+    const closeConnectModal = () => {
+        setIsConnectModalOpen(false);
+        setConnectError(null);
+        setEmbeddedSignupLoading(false);
+        setShowManualForm(false);
+        setWabaId('');
+        setAccessToken('');
+    };
+
+    const handleEmbeddedSignup = () => {
+        if (!window.FB) return;
+
+        setEmbeddedSignupLoading(true);
+        setConnectError(null);
+
+        window.FB.login(
+            function (response) {
+                if (response.authResponse) {
+                    const code = response.authResponse.code;
+                    const config = { headers: { 'x-auth-token': token } };
+
+                    axios
+                        .post(`${API_URL}/whatsapp/embedded-signup`, { code }, config)
+                        .then(() => {
+                            closeConnectModal();
+                            fetchAccounts();
+                        })
+                        .catch((err) => {
+                            setConnectError(
+                                err.response?.data?.msg || 'Failed to complete Embedded Signup'
+                            );
+                            setEmbeddedSignupLoading(false);
+                        });
+                } else {
+                    // User cancelled the popup
+                    setEmbeddedSignupLoading(false);
+                }
+            },
+            {
+                config_id: configRef.current?.configId,
+                response_type: 'code',
+                override_default_response_type: true,
+                extras: {
+                    setup: {},
+                    featureType: '',
+                    sessionInfoVersion: '3',
+                },
+            }
+        );
+    };
+
     const handleConnect = async (e) => {
         e.preventDefault();
         if (!wabaId || !accessToken) return;
@@ -69,9 +133,7 @@ const WhatsAppAccounts = () => {
 
             await axios.post(`${API_URL}/whatsapp/connect`, { wabaId, accessToken }, config);
 
-            setWabaId('');
-            setAccessToken('');
-            setIsConnectModalOpen(false);
+            closeConnectModal();
             fetchAccounts();
         } catch (err) {
             console.error('Connect error:', err);
@@ -210,14 +272,14 @@ const WhatsAppAccounts = () => {
                                 Connect WhatsApp
                             </h3>
                             <button
-                                onClick={() => setIsConnectModalOpen(false)}
+                                onClick={closeConnectModal}
                                 className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                                 <LogOut size={20} className="rotate-180" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleConnect} className="p-6">
+                        <div className="p-6">
                             {connectError && (
                                 <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-start gap-2">
                                     <AlertCircle size={16} className="mt-0.5" />
@@ -225,61 +287,106 @@ const WhatsAppAccounts = () => {
                                 </div>
                             )}
 
-                            <div className="space-y-4 mb-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        WhatsApp Business Account ID
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={wabaId}
-                                        onChange={(e) => setWabaId(e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm font-mono"
-                                        placeholder="e.g. 10456..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        System User Access Token
-                                    </label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={accessToken}
-                                        onChange={(e) => setAccessToken(e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm font-mono"
-                                        placeholder="EAAG..."
-                                    />
-                                    <p className="text-[10px] text-gray-400 mt-1">
-                                        This token connects to the Facebook Graph API to fetch your account details.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
+                            {/* Embedded Signup Section */}
+                            <div className="mb-4">
+                                <p className="text-sm text-gray-600 mb-3">
+                                    Connect your WhatsApp Business Account through Meta's guided setup.
+                                </p>
                                 <button
                                     type="button"
-                                    onClick={() => setIsConnectModalOpen(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
+                                    onClick={handleEmbeddedSignup}
+                                    disabled={!fbReady || embeddedSignupLoading}
+                                    className="w-full flex items-center justify-center gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white px-4 py-2.5 rounded-xl font-bold transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={connectLoading || !wabaId || !accessToken}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
-                                >
-                                    {connectLoading ? (
+                                    {embeddedSignupLoading ? (
                                         <Loader2 size={18} className="animate-spin" />
                                     ) : (
                                         <>
-                                            Connect
+                                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                            </svg>
+                                            Login with Facebook
                                         </>
                                     )}
                                 </button>
+                                {!fbReady && (
+                                    <p className="text-[10px] text-gray-400 mt-1 text-center">Loading Facebook SDK...</p>
+                                )}
                             </div>
-                        </form>
+
+                            {/* Divider */}
+                            <div className="flex items-center gap-3 my-5">
+                                <div className="flex-1 h-px bg-gray-200"></div>
+                                <span className="text-xs text-gray-400 font-medium">or connect manually</span>
+                                <div className="flex-1 h-px bg-gray-200"></div>
+                            </div>
+
+                            {/* Manual Form — collapsed by default */}
+                            {!showManualForm ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowManualForm(true)}
+                                    className="w-full text-sm text-gray-500 hover:text-gray-700 font-medium py-2 transition-colors"
+                                >
+                                    Enter WABA ID & Access Token manually
+                                </button>
+                            ) : (
+                                <form onSubmit={handleConnect}>
+                                    <div className="space-y-4 mb-6">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                                WhatsApp Business Account ID
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={wabaId}
+                                                onChange={(e) => setWabaId(e.target.value)}
+                                                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm font-mono"
+                                                placeholder="e.g. 10456..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                                System User Access Token
+                                            </label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={accessToken}
+                                                onChange={(e) => setAccessToken(e.target.value)}
+                                                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm font-mono"
+                                                placeholder="EAAG..."
+                                            />
+                                            <p className="text-[10px] text-gray-400 mt-1">
+                                                This token connects to the Facebook Graph API to fetch your account details.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={closeConnectModal}
+                                            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={connectLoading || !wabaId || !accessToken}
+                                            className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+                                        >
+                                            {connectLoading ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : (
+                                                'Connect'
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
