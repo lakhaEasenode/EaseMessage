@@ -225,6 +225,7 @@ router.get('/accounts', auth, async (req, res) => {
                             }
                         }
                     );
+                    console.log(`Phone ${num.phoneNumberId} Meta details:`, JSON.stringify(phoneRes.data, null, 2));
                     numObj.meta = phoneRes.data;
                 } catch (phoneErr) {
                     console.warn(`Failed to fetch Meta details for phone ${num.phoneNumberId}:`, phoneErr.response?.data?.error?.message || phoneErr.message);

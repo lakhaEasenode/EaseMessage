@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield, Trash2, Activity, MessageSquare, Globe, Clock } from 'lucide-react';
+import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield, Unplug, Activity, MessageSquare, Globe, Clock } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import WhatsAppHeader from '../components/WhatsAppHeader';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -27,6 +27,7 @@ const WhatsAppAccounts = () => {
 
     // Disconnect State
     const [disconnectingId, setDisconnectingId] = useState(null);
+    const [disconnectModal, setDisconnectModal] = useState({ open: false, wabaId: null, accountName: '' });
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
@@ -157,8 +158,13 @@ const WhatsAppAccounts = () => {
         }
     };
 
-    const handleDisconnect = async (wabaId, accountName) => {
-        if (!window.confirm(`Disconnect "${accountName}"? This will remove the account and all linked phone numbers from EaseMessage.`)) return;
+    const handleDisconnect = (wabaId, accountName) => {
+        setDisconnectModal({ open: true, wabaId, accountName });
+    };
+
+    const confirmDisconnect = async () => {
+        const { wabaId } = disconnectModal;
+        setDisconnectModal({ open: false, wabaId: null, accountName: '' });
 
         try {
             setDisconnectingId(wabaId);
@@ -267,7 +273,7 @@ const WhatsAppAccounts = () => {
                                             {disconnectingId === account.wabaId ? (
                                                 <Loader2 size={16} className="animate-spin" />
                                             ) : (
-                                                <Trash2 size={16} />
+                                                <Unplug size={16} />
                                             )}
                                         </button>
                                     </div>
@@ -541,6 +547,46 @@ const WhatsAppAccounts = () => {
                                     </div>
                                 </form>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Disconnect Confirmation Modal */}
+            {disconnectModal.open && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2 bg-red-50">
+                            <div className="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center">
+                                <Unplug size={18} />
+                            </div>
+                            <h3 className="font-bold text-gray-800">Disconnect Account</h3>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-gray-700 mb-3">
+                                Are you sure you want to disconnect <span className="font-bold">"{disconnectModal.accountName}"</span>?
+                            </p>
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-5 flex items-start gap-2">
+                                <AlertCircle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                                <p className="text-xs text-amber-700">
+                                    All information related to this account, including linked phone numbers, message history, and campaign data will be permanently lost.
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDisconnectModal({ open: false, wabaId: null, accountName: '' })}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-all text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDisconnect}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-all text-sm flex items-center justify-center gap-2"
+                                >
+                                    <Unplug size={15} />
+                                    Disconnect
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
