@@ -185,25 +185,93 @@ router.post('/embedded-signup', auth, async (req, res) => {
 });
 
 // @route   GET api/whatsapp/accounts
-// @desc    Get connected accounts
+// @desc    Get connected accounts with live Meta analytics
 // @access  Private
 router.get('/accounts', auth, async (req, res) => {
     try {
         const accounts = await WhatsAppBusinessAccount.find({ userId: req.scopeUserId || req.user.id });
-        const result = [];
 
-        for (const acc of accounts) {
+        const result = await Promise.all(accounts.map(async (acc) => {
             const numbers = await WhatsAppPhoneNumber.find({ wabaId: acc._id });
-            result.push({
-                ...acc.toObject(),
-                phoneNumbers: numbers
-            });
-        }
+            const { accessToken: _token, ...accObj } = acc.toObject(); // strip accessToken from response
+
+            // Fetch live analytics from Meta (best-effort — don't fail if Meta is down)
+            let analytics = null;
+            try {
+                const wabaInfoRes = await axios.get(
+                    `https://graph.facebook.com/v24.0/${acc.wabaId}`,
+                    {
+                        params: {
+                            fields: 'account_review_status,on_behalf_of_business_info,message_template_namespace,ownership_type,currency,country',
+                            access_token: acc.accessToken
+                        }
+                    }
+                );
+                analytics = { ...wabaInfoRes.data };
+            } catch (metaErr) {
+                console.warn(`Failed to fetch Meta analytics for WABA ${acc.wabaId}:`, metaErr.response?.data?.error?.message || metaErr.message);
+            }
+
+            // Fetch per-phone-number details in parallel
+            const enrichedNumbers = await Promise.all(numbers.map(async (num) => {
+                const numObj = num.toObject();
+                try {
+                    const phoneRes = await axios.get(
+                        `https://graph.facebook.com/v24.0/${num.phoneNumberId}`,
+                        {
+                            params: {
+                                fields: 'messaging_limit_tier,name_status,new_name_status,status,health_status,is_official_business_account,account_mode,certificate,last_onboarded_time',
+                                access_token: acc.accessToken
+                            }
+                        }
+                    );
+                    numObj.meta = phoneRes.data;
+                } catch (phoneErr) {
+                    console.warn(`Failed to fetch Meta details for phone ${num.phoneNumberId}:`, phoneErr.response?.data?.error?.message || phoneErr.message);
+                    numObj.meta = null;
+                }
+                return numObj;
+            }));
+
+            return { ...accObj, analytics, phoneNumbers: enrichedNumbers };
+        }));
 
         res.json(result);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
+    }
+});
+
+// @route   DELETE api/whatsapp/accounts/:wabaId
+// @desc    Disconnect a WhatsApp Business Account and its phone numbers
+// @access  Private
+router.delete('/accounts/:wabaId', auth, async (req, res) => {
+    try {
+        const scopeUserId = req.scopeUserId || req.user.id;
+        const account = await WhatsAppBusinessAccount.findOne({
+            wabaId: req.params.wabaId,
+            userId: scopeUserId
+        });
+
+        if (!account) {
+            return res.status(404).json({ msg: 'Account not found' });
+        }
+
+        // Delete all phone numbers linked to this WABA
+        await WhatsAppPhoneNumber.deleteMany({ wabaId: account._id });
+
+        // Delete templates linked to this WABA
+        const Template = require('../models/Template');
+        await Template.deleteMany({ wabaId: account._id });
+
+        // Delete the WABA record
+        await WhatsAppBusinessAccount.deleteOne({ _id: account._id });
+
+        res.json({ msg: 'WhatsApp Account disconnected successfully' });
+    } catch (err) {
+        console.error('Disconnect error:', err.message);
+        res.status(500).json({ msg: 'Failed to disconnect account' });
     }
 });
 

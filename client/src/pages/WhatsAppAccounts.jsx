@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield } from 'lucide-react';
+import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield, Trash2, Activity, MessageSquare, Globe, Clock } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import WhatsAppHeader from '../components/WhatsAppHeader';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -24,6 +24,9 @@ const WhatsAppAccounts = () => {
     const { isReady: fbReady, loadSDK: loadFacebookSDK, configRef } = useFacebookSDK(token);
     const [embeddedSignupLoading, setEmbeddedSignupLoading] = useState(false);
     const [showManualForm, setShowManualForm] = useState(false);
+
+    // Disconnect State
+    const [disconnectingId, setDisconnectingId] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
@@ -147,11 +150,41 @@ const WhatsAppAccounts = () => {
         try {
             const config = { headers: { 'x-auth-token': token } };
             await axios.put(`${API_URL}/whatsapp/phone/${phoneNumberId}/set-default`, {}, config);
-            fetchAccounts(); // Refresh to show updated default
+            fetchAccounts();
         } catch (err) {
             console.error('Failed to set default:', err);
             alert(err.response?.data?.msg || 'Failed to set default phone number');
         }
+    };
+
+    const handleDisconnect = async (wabaId, accountName) => {
+        if (!window.confirm(`Disconnect "${accountName}"? This will remove the account and all linked phone numbers from EaseMessage.`)) return;
+
+        try {
+            setDisconnectingId(wabaId);
+            const config = { headers: { 'x-auth-token': token } };
+            await axios.delete(`${API_URL}/whatsapp/accounts/${wabaId}`, config);
+            fetchAccounts();
+        } catch (err) {
+            console.error('Disconnect error:', err);
+            alert(err.response?.data?.msg || 'Failed to disconnect account');
+        } finally {
+            setDisconnectingId(null);
+        }
+    };
+
+    // Helper to format messaging limit tier
+    const formatMessagingLimit = (tier) => {
+        const limits = {
+            TIER_NOT_SET: 'Not Set',
+            TIER_50: '50 / day',
+            TIER_250: '250 / day',
+            TIER_1K: '1K / day',
+            TIER_10K: '10K / day',
+            TIER_100K: '100K / day',
+            TIER_UNLIMITED: 'Unlimited',
+        };
+        return limits[tier] || tier || 'Unknown';
     };
 
     return (
@@ -191,6 +224,7 @@ const WhatsAppAccounts = () => {
                     ) : (
                         accounts.map(account => (
                             <div key={account._id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                {/* Account Header */}
                                 <div className="px-3 py-2 border-b border-gray-50 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 bg-green-100 text-green-700 rounded-lg flex items-center justify-center font-bold text-base">
@@ -206,13 +240,70 @@ const WhatsAppAccounts = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
-                                            <CheckCircle size={10} />
-                                            Active
-                                        </span>
+                                        {account.analytics?.account_review_status && (
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 ${
+                                                account.analytics.account_review_status === 'APPROVED'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : account.analytics.account_review_status === 'PENDING'
+                                                        ? 'bg-yellow-100 text-yellow-700'
+                                                        : 'bg-red-100 text-red-700'
+                                            }`}>
+                                                <CheckCircle size={10} />
+                                                {account.analytics.account_review_status}
+                                            </span>
+                                        )}
+                                        {!account.analytics?.account_review_status && (
+                                            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                                                <CheckCircle size={10} />
+                                                Active
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => handleDisconnect(account.wabaId, account.name)}
+                                            disabled={disconnectingId === account.wabaId}
+                                            className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Disconnect account"
+                                        >
+                                            {disconnectingId === account.wabaId ? (
+                                                <Loader2 size={16} className="animate-spin" />
+                                            ) : (
+                                                <Trash2 size={16} />
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
 
+                                {/* Account Details from Meta */}
+                                {account.analytics && (
+                                    <div className="px-3 py-2 border-b border-gray-50 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        {account.analytics.ownership_type && (
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                <Globe size={12} className="text-gray-400" />
+                                                <span className="font-medium text-gray-700">{account.analytics.ownership_type}</span>
+                                            </div>
+                                        )}
+                                        {account.analytics.currency && (
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                <span className="text-gray-400 font-mono text-[10px]">$</span>
+                                                <span className="font-medium text-gray-700">{account.analytics.currency}</span>
+                                            </div>
+                                        )}
+                                        {account.analytics.country && (
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                <Globe size={12} className="text-gray-400" />
+                                                <span className="font-medium text-gray-700">{account.analytics.country}</span>
+                                            </div>
+                                        )}
+                                        {account.analytics.on_behalf_of_business_info?.name && (
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500 col-span-2 md:col-span-1">
+                                                <Activity size={12} className="text-gray-400" />
+                                                <span className="font-medium text-gray-700 truncate">{account.analytics.on_behalf_of_business_info.name}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Phone Numbers */}
                                 <div className="p-3">
                                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Connected Phone Numbers</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -236,6 +327,70 @@ const WhatsAppAccounts = () => {
                                                     </span>
                                                 </div>
                                                 <div className="text-xs font-mono text-gray-600 mb-1.5">{num.displayPhoneNumber}</div>
+
+                                                {/* Meta live details */}
+                                                {num.meta && (
+                                                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-1.5 py-1.5 border-t border-gray-50">
+                                                        <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                            <MessageSquare size={10} />
+                                                            Messaging Limit
+                                                        </div>
+                                                        <div className="text-[10px] font-bold text-gray-700 text-right">
+                                                            {formatMessagingLimit(num.meta.messaging_limit_tier)}
+                                                        </div>
+
+                                                        <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                            <Activity size={10} />
+                                                            Name Status
+                                                        </div>
+                                                        <div className={`text-[10px] font-bold text-right ${
+                                                            num.meta.name_status === 'APPROVED' ? 'text-green-600' :
+                                                            num.meta.name_status === 'DECLINED' ? 'text-red-600' : 'text-yellow-600'
+                                                        }`}>
+                                                            {num.meta.name_status || 'N/A'}
+                                                        </div>
+
+                                                        {num.meta.health_status?.can_send_message && (
+                                                            <>
+                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                                    <CheckCircle size={10} />
+                                                                    Health
+                                                                </div>
+                                                                <div className={`text-[10px] font-bold text-right ${
+                                                                    num.meta.health_status.can_send_message === 'AVAILABLE' ? 'text-green-600' :
+                                                                    num.meta.health_status.can_send_message === 'LIMITED' ? 'text-yellow-600' : 'text-red-600'
+                                                                }`}>
+                                                                    {num.meta.health_status.can_send_message}
+                                                                </div>
+                                                            </>
+                                                        )}
+
+                                                        {num.meta.is_official_business_account !== undefined && (
+                                                            <>
+                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                                    <Shield size={10} />
+                                                                    Official
+                                                                </div>
+                                                                <div className="text-[10px] font-bold text-right text-gray-700">
+                                                                    {num.meta.is_official_business_account ? 'Yes' : 'No'}
+                                                                </div>
+                                                            </>
+                                                        )}
+
+                                                        {num.meta.last_onboarded_time && (
+                                                            <>
+                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                                    <Clock size={10} />
+                                                                    Onboarded
+                                                                </div>
+                                                                <div className="text-[10px] font-bold text-right text-gray-700">
+                                                                    {new Date(num.meta.last_onboarded_time).toLocaleDateString()}
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
                                                         <span className={`w-1.5 h-1.5 rounded-full ${num.qualityRating === 'GREEN' ? 'bg-green-500' :
