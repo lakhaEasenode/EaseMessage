@@ -340,7 +340,7 @@ const WhatsAppAccounts = () => {
                                 {/* Conversation Analytics (last 30 days) */}
                                 {account.analytics?.conversation_analytics && (
                                     <div className="px-3 py-2 border-b border-gray-50 flex items-center gap-4">
-                                        <div className="text-xs text-gray-400 font-medium">Last 30 days:</div>
+                                        <div className="text-xs text-gray-400 font-medium">All time:</div>
                                         <div className="flex items-center gap-1.5 text-xs">
                                             <MessageSquare size={12} className="text-green-500" />
                                             <span className="font-bold text-gray-800">{account.analytics.conversation_analytics.totalConversations}</span>

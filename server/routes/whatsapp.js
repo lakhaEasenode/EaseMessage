@@ -30,12 +30,11 @@ async function syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken) {
     let conversationAnalytics = null;
     try {
         const now = Math.floor(Date.now() / 1000);
-        const thirtyDaysAgo = now - (30 * 24 * 60 * 60);
         const analyticsRes = await axios.get(
             `https://graph.facebook.com/v24.0/${wabaId}`,
             {
                 params: {
-                    fields: `conversation_analytics.start(${thirtyDaysAgo}).end(${now}).granularity(DAILY)`,
+                    fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY)`,
                     access_token: accessToken
                 }
             }
@@ -50,7 +49,7 @@ async function syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken) {
             if (point.conversation_direction === 'BUSINESS_INITIATED') businessInitiated += count;
             if (point.conversation_direction === 'USER_INITIATED') userInitiated += count;
         }
-        conversationAnalytics = { totalConversations, businessInitiated, userInitiated, periodDays: 30 };
+        conversationAnalytics = { totalConversations, businessInitiated, userInitiated };
     } catch (convErr) {
         console.warn(`Failed to fetch conversation analytics for WABA ${wabaId}:`, convErr.response?.data?.error?.message || convErr.message);
     }
