@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield, Unplug, Activity, MessageSquare, Globe, Clock } from 'lucide-react';
+import { Loader2, Plus, LogOut, CheckCircle, Smartphone, AlertCircle, Shield, Unplug, Activity, MessageSquare, Globe, Clock, RefreshCw } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import WhatsAppHeader from '../components/WhatsAppHeader';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -29,6 +29,9 @@ const WhatsAppAccounts = () => {
     const [disconnectingId, setDisconnectingId] = useState(null);
     const [disconnectModal, setDisconnectModal] = useState({ open: false, wabaId: null, accountName: '' });
 
+    // Sync State
+    const [syncing, setSyncing] = useState(false);
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301/api';
 
     const fetchAccounts = async () => {
@@ -56,17 +59,28 @@ const WhatsAppAccounts = () => {
             title: 'WhatsApp Accounts',
             subtitle: 'Manage your connected WhatsApp Business Accounts',
             actions: (
-                <button
-                    onClick={() => setIsConnectModalOpen(true)}
-                    className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                >
-                    <Plus size={15} />
-                    Connect Account
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleSync}
+                        disabled={syncing}
+                        className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        title="Refresh data from Meta"
+                    >
+                        <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
+                        {syncing ? 'Syncing...' : 'Sync'}
+                    </button>
+                    <button
+                        onClick={() => setIsConnectModalOpen(true)}
+                        className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <Plus size={15} />
+                        Connect Account
+                    </button>
+                </div>
             )
         });
         return () => setHeader({ title: '', subtitle: null, actions: null });
-    }, []);
+    }, [syncing]);
 
     // Load Facebook SDK when connect modal opens
     useEffect(() => {
@@ -179,6 +193,20 @@ const WhatsAppAccounts = () => {
         }
     };
 
+    const handleSync = async () => {
+        try {
+            setSyncing(true);
+            const config = { headers: { 'x-auth-token': token } };
+            await axios.post(`${API_URL}/whatsapp/accounts/sync`, {}, config);
+            await fetchAccounts();
+        } catch (err) {
+            console.error('Sync error:', err);
+            alert(err.response?.data?.msg || 'Failed to sync accounts');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     // Helper to format messaging limit tier
     const formatMessagingLimit = (tier) => {
         const limits = {
@@ -267,14 +295,14 @@ const WhatsAppAccounts = () => {
                                         <button
                                             onClick={() => handleDisconnect(account.wabaId, account.name)}
                                             disabled={disconnectingId === account.wabaId}
-                                            className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                                            title="Disconnect account"
+                                            className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-600 border border-red-200 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
                                         >
                                             {disconnectingId === account.wabaId ? (
-                                                <Loader2 size={16} className="animate-spin" />
+                                                <Loader2 size={13} className="animate-spin" />
                                             ) : (
-                                                <Unplug size={16} />
+                                                <Unplug size={13} />
                                             )}
+                                            Disconnect
                                         </button>
                                     </div>
                                 </div>
@@ -306,6 +334,26 @@ const WhatsAppAccounts = () => {
                                                 <span className="font-medium text-gray-700 truncate">{account.analytics.on_behalf_of_business_info.name}</span>
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {/* Conversation Analytics (last 30 days) */}
+                                {account.analytics?.conversation_analytics && (
+                                    <div className="px-3 py-2 border-b border-gray-50 flex items-center gap-4">
+                                        <div className="text-xs text-gray-400 font-medium">Last 30 days:</div>
+                                        <div className="flex items-center gap-1.5 text-xs">
+                                            <MessageSquare size={12} className="text-green-500" />
+                                            <span className="font-bold text-gray-800">{account.analytics.conversation_analytics.totalConversations}</span>
+                                            <span className="text-gray-400">conversations</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs">
+                                            <span className="text-gray-400">Business:</span>
+                                            <span className="font-bold text-gray-700">{account.analytics.conversation_analytics.businessInitiated}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs">
+                                            <span className="text-gray-400">User:</span>
+                                            <span className="font-bold text-gray-700">{account.analytics.conversation_analytics.userInitiated}</span>
+                                        </div>
                                     </div>
                                 )}
 

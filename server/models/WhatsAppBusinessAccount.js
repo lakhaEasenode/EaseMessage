@@ -25,6 +25,13 @@ const WhatsAppBusinessAccountSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    metaData: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    },
+    lastSyncedAt: {
+        type: Date
+    },
     createdAt: {
         type: Date,
         default: Date.now

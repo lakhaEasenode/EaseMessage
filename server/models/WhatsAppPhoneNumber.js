@@ -38,6 +38,13 @@ const WhatsAppPhoneNumberSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    metaData: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    },
+    lastSyncedAt: {
+        type: Date
+    },
     createdAt: {
         type: Date,
         default: Date.now
