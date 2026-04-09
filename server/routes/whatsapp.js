@@ -63,7 +63,10 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
                 access_token: accessToken,
             },
         });
-
+        console.log(
+            `Conversation analytics for WABA ${wabaId}:`,
+            res.data
+        );
         const dataPoints = res.data?.conversation_analytics?.data?.[0]?.data_points || [];
         const waba = emptyConvBucket();
         const byPhoneDigits = new Map();
