@@ -90,6 +90,10 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
             `Failed to fetch conversation analytics for WABA ${wabaId}:`,
             err.response?.data?.error?.message || err.message
         );
+        console.log(
+            `Failed to fetch conversation analytics for WABA ${wabaId}:`,
+            err.response?.data
+        );
         return null;
     }
 }
