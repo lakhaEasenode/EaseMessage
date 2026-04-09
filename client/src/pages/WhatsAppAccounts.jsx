@@ -207,7 +207,7 @@ const WhatsAppAccounts = () => {
         }
     };
 
-    // Helper to format messaging limit tier
+    // Helper to format messaging limit tier. Returns null if tier is unknown/missing.
     const formatMessagingLimit = (tier) => {
         const limits = {
             TIER_NOT_SET: 'Not Set',
@@ -218,7 +218,7 @@ const WhatsAppAccounts = () => {
             TIER_100K: '100K / day',
             TIER_UNLIMITED: 'Unlimited',
         };
-        return limits[tier] || tier || 'Unknown';
+        return limits[tier] || null;
     };
 
     return (
@@ -403,25 +403,39 @@ const WhatsAppAccounts = () => {
 
                                                 {/* Meta live details */}
                                                 {num.meta && (
+                                                    formatMessagingLimit(num.meta.messaging_limit_tier) ||
+                                                    num.meta.name_status ||
+                                                    num.meta.health_status?.can_send_message ||
+                                                    num.meta.is_official_business_account !== undefined ||
+                                                    num.meta.last_onboarded_time
+                                                ) && (
                                                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-1.5 py-1.5 border-t border-gray-50">
-                                                        <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                                                            <MessageSquare size={10} />
-                                                            Messaging Limit
-                                                        </div>
-                                                        <div className="text-[10px] font-bold text-gray-700 text-right">
-                                                            {formatMessagingLimit(num.meta.messaging_limit_tier)}
-                                                        </div>
+                                                        {formatMessagingLimit(num.meta.messaging_limit_tier) && (
+                                                            <>
+                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                                    <MessageSquare size={10} />
+                                                                    Messaging Limit
+                                                                </div>
+                                                                <div className="text-[10px] font-bold text-gray-700 text-right">
+                                                                    {formatMessagingLimit(num.meta.messaging_limit_tier)}
+                                                                </div>
+                                                            </>
+                                                        )}
 
-                                                        <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                                                            <Activity size={10} />
-                                                            Name Status
-                                                        </div>
-                                                        <div className={`text-[10px] font-bold text-right ${
-                                                            num.meta.name_status === 'APPROVED' ? 'text-green-600' :
-                                                            num.meta.name_status === 'DECLINED' ? 'text-red-600' : 'text-yellow-600'
-                                                        }`}>
-                                                            {num.meta.name_status || 'N/A'}
-                                                        </div>
+                                                        {num.meta.name_status && (
+                                                            <>
+                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                                    <Activity size={10} />
+                                                                    Name Status
+                                                                </div>
+                                                                <div className={`text-[10px] font-bold text-right ${
+                                                                    num.meta.name_status === 'APPROVED' ? 'text-green-600' :
+                                                                    num.meta.name_status === 'DECLINED' ? 'text-red-600' : 'text-yellow-600'
+                                                                }`}>
+                                                                    {num.meta.name_status}
+                                                                </div>
+                                                            </>
+                                                        )}
 
                                                         {num.meta.health_status?.can_send_message && (
                                                             <>
@@ -465,12 +479,14 @@ const WhatsAppAccounts = () => {
                                                 )}
 
                                                 <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${num.qualityRating === 'GREEN' ? 'bg-green-500' :
-                                                            num.qualityRating === 'YELLOW' ? 'bg-yellow-500' : 'bg-red-500'
-                                                            }`}></span>
-                                                        Quality: {num.qualityRating || 'UNKNOWN'}
-                                                    </div>
+                                                    {num.qualityRating && num.qualityRating !== 'UNKNOWN' ? (
+                                                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${num.qualityRating === 'GREEN' ? 'bg-green-500' :
+                                                                num.qualityRating === 'YELLOW' ? 'bg-yellow-500' : 'bg-red-500'
+                                                                }`}></span>
+                                                            Quality: {num.qualityRating}
+                                                        </div>
+                                                    ) : <div />}
                                                     {!num.isDefault && (
                                                         <button
                                                             onClick={() => handleSetDefault(num.phoneNumberId)}
