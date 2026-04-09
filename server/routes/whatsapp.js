@@ -65,7 +65,7 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
         });
         console.log(
             `Conversation analytics for WABA ${wabaId}:`,
-            res.data
+            res
         );
         const dataPoints = res.data?.conversation_analytics?.data?.[0]?.data_points || [];
         const waba = emptyConvBucket();
