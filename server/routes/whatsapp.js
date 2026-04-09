@@ -9,14 +9,186 @@ const { emitToUser } = require('../socket');
 // Meta Graph API fields
 const WABA_FIELDS = 'name,timezone_id,message_template_namespace,account_review_status,on_behalf_of_business_info,ownership_type,currency,country';
 const PHONE_FIELDS = 'verified_name,display_phone_number,code_verification_status,quality_rating,platform_type,throughput,messaging_limit_tier,name_status,new_name_status,status,health_status,is_official_business_account,account_mode,certificate,last_onboarded_time';
+const GRAPH_BASE = 'https://graph.facebook.com/v24.0';
 
-// Shared helper: fetch WABA details + phone numbers from Meta and upsert into DB
-async function syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken) {
-    // 1. Fetch WABA Details (including analytics fields)
-    const wabaResponse = await axios.get(`https://graph.facebook.com/v24.0/${wabaId}`, {
-        params: { fields: WABA_FIELDS, access_token: accessToken }
+/** Digits-only normalization. Used to key phone numbers across Meta's inconsistent formats. */
+const normalizeDigits = (value) => String(value || '').replace(/\D/g, '');
+
+/** Zero-value bucket for conversation analytics — used as initial state and for cloning. */
+const emptyConvBucket = () => ({ totalConversations: 0, businessInitiated: 0, userInitiated: 0 });
+
+/**
+ * Fetch WABA top-level details from Meta.
+ */
+async function fetchWabaDetails(wabaId, accessToken) {
+    const res = await axios.get(`${GRAPH_BASE}/${wabaId}`, {
+        params: { fields: WABA_FIELDS, access_token: accessToken },
     });
-    const wabaData = wabaResponse.data;
+    return res.data;
+}
+
+/**
+ * Fetch conversation analytics from Meta, broken down per phone number.
+ *
+ * Adds the PHONE dimension so Meta returns one data point per
+ * (phone_number, conversation_direction) instead of a WABA-wide aggregate.
+ *
+ * Returns:
+ *   {
+ *     waba: { totalConversations, businessInitiated, userInitiated },
+ *     byPhoneDigits: Map<digitsOnlyDisplayNumber, { totalConversations, businessInitiated, userInitiated }>
+ *   }
+ *
+ * Meta's PHONE dimension returns the display phone number (e.g. "+15550123456"),
+ * NOT the phone_number_id — so callers must match by normalizing their own
+ * displayPhoneNumber through `normalizeDigits`.
+ *
+ * Returns null on failure. Analytics are best-effort: a failure here must
+ * never break the rest of the sync.
+ */
+async function fetchConversationAnalytics(wabaId, accessToken) {
+    try {
+        const now = Math.floor(Date.now() / 1000);
+        const res = await axios.get(`${GRAPH_BASE}/${wabaId}`, {
+            params: {
+                fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY).dimensions(['PHONE','CONVERSATION_DIRECTION'])`,
+                access_token: accessToken,
+            },
+        });
+
+        const dataPoints = res.data?.conversation_analytics?.data?.[0]?.data_points || [];
+        const waba = emptyConvBucket();
+        const byPhoneDigits = new Map();
+
+        for (const point of dataPoints) {
+            const count = point.conversation || 0;
+            const direction = point.conversation_direction;
+
+            waba.totalConversations += count;
+            if (direction === 'BUSINESS_INITIATED') waba.businessInitiated += count;
+            else if (direction === 'USER_INITIATED') waba.userInitiated += count;
+
+            const phoneKey = normalizeDigits(point.phone_number);
+            if (!phoneKey) continue;
+
+            if (!byPhoneDigits.has(phoneKey)) byPhoneDigits.set(phoneKey, emptyConvBucket());
+            const bucket = byPhoneDigits.get(phoneKey);
+            bucket.totalConversations += count;
+            if (direction === 'BUSINESS_INITIATED') bucket.businessInitiated += count;
+            else if (direction === 'USER_INITIATED') bucket.userInitiated += count;
+        }
+
+        return { waba, byPhoneDigits };
+    } catch (err) {
+        console.warn(
+            `Failed to fetch conversation analytics for WABA ${wabaId}:`,
+            err.response?.data?.error?.message || err.message
+        );
+        return null;
+    }
+}
+
+/**
+ * Fetch the list of phone numbers attached to a WABA.
+ */
+async function fetchPhoneNumberList(wabaId, accessToken) {
+    const res = await axios.get(`${GRAPH_BASE}/${wabaId}/phone_numbers`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return res.data?.data || [];
+}
+
+/**
+ * Fetch enriched Meta details for every phone in parallel.
+ * Individual failures resolve to `null` so one bad phone doesn't break the sync.
+ */
+async function fetchPhoneMetaBatch(phoneNumbers, accessToken) {
+    return Promise.all(
+        phoneNumbers.map((phone) =>
+            axios
+                .get(`${GRAPH_BASE}/${phone.id}`, {
+                    params: { fields: PHONE_FIELDS, access_token: accessToken },
+                })
+                .then((r) => r.data)
+                .catch((err) => {
+                    console.warn(
+                        `Failed to fetch Meta details for phone ${phone.id}:`,
+                        err.response?.data?.error?.message || err.message
+                    );
+                    return null;
+                })
+        )
+    );
+}
+
+/**
+ * Upsert a WABA record. Creates on first sync, updates thereafter.
+ */
+async function upsertWabaRecord(scopeUserId, wabaData, wabaMetaData, accessToken) {
+    const fields = {
+        name: wabaData.name,
+        timezoneId: wabaData.timezone_id,
+        messageTemplateNamespace: wabaData.message_template_namespace,
+        accessToken,
+        metaData: wabaMetaData,
+        lastSyncedAt: new Date(),
+    };
+
+    const existing = await WhatsAppBusinessAccount.findOne({ wabaId: wabaData.id });
+    if (existing) {
+        Object.assign(existing, fields);
+        await existing.save();
+        return existing;
+    }
+    return WhatsAppBusinessAccount.create({
+        userId: scopeUserId,
+        wabaId: wabaData.id,
+        ...fields,
+    });
+}
+
+/**
+ * Upsert a single phone number record. `phoneMeta` already contains the
+ * per-phone conversation_analytics slice merged in by the caller.
+ */
+async function upsertPhoneNumberRecord(scopeUserId, wabaRecordId, phone, phoneMeta) {
+    const fields = {
+        verifiedName: phone.verified_name,
+        displayPhoneNumber: phone.display_phone_number,
+        codeVerificationStatus: phone.code_verification_status,
+        qualityRating: phone.quality_rating,
+        platformType: phone.platform_type,
+        throughput: phone.throughput,
+        metaData: phoneMeta,
+        lastSyncedAt: new Date(),
+    };
+
+    const existing = await WhatsAppPhoneNumber.findOne({ phoneNumberId: phone.id });
+    if (existing) {
+        Object.assign(existing, fields);
+        await existing.save();
+        return existing;
+    }
+    return WhatsAppPhoneNumber.create({
+        userId: scopeUserId,
+        wabaId: wabaRecordId,
+        phoneNumberId: phone.id,
+        ...fields,
+    });
+}
+
+/**
+ * Orchestrates a full sync for a single WABA:
+ *   1. Fetch WABA details + conversation analytics in parallel (independent calls).
+ *   2. Upsert the WABA record with WABA-level analytics.
+ *   3. Fetch the phone list, then enriched per-phone Meta details in parallel.
+ *   4. Upsert each phone record with its analytics slice merged into metaData.
+ */
+async function syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken) {
+    const [wabaData, analytics] = await Promise.all([
+        fetchWabaDetails(wabaId, accessToken),
+        fetchConversationAnalytics(wabaId, accessToken),
+    ]);
 
     const wabaMetaData = {
         account_review_status: wabaData.account_review_status,
@@ -24,113 +196,24 @@ async function syncWabaAndPhoneNumbers(scopeUserId, wabaId, accessToken) {
         ownership_type: wabaData.ownership_type,
         currency: wabaData.currency,
         country: wabaData.country,
+        conversation_analytics: analytics?.waba || null,
     };
 
-    // Fetch conversation analytics (last 30 days) — best-effort
-    let conversationAnalytics = null;
-    try {
-        const now = Math.floor(Date.now() / 1000);
-        const analyticsRes = await axios.get(
-            `https://graph.facebook.com/v24.0/${wabaId}`,
-            {
-                params: {
-                    fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY)`,
-                    access_token: accessToken
-                }
-            }
-        );
-        const rawData = analyticsRes.data?.conversation_analytics?.data?.[0]?.data_points || [];
-        let totalConversations = 0;
-        let businessInitiated = 0;
-        let userInitiated = 0;
-        for (const point of rawData) {
-            const count = point.conversation || 0;
-            totalConversations += count;
-            if (point.conversation_direction === 'BUSINESS_INITIATED') businessInitiated += count;
-            if (point.conversation_direction === 'USER_INITIATED') userInitiated += count;
-        }
-        conversationAnalytics = { totalConversations, businessInitiated, userInitiated };
-    } catch (convErr) {
-        console.warn(`Failed to fetch conversation analytics for WABA ${wabaId}:`, convErr.response?.data?.error?.message || convErr.message);
-    }
+    const account = await upsertWabaRecord(scopeUserId, wabaData, wabaMetaData, accessToken);
 
-    wabaMetaData.conversation_analytics = conversationAnalytics;
+    const phoneNumbers = await fetchPhoneNumberList(wabaId, accessToken);
+    const phoneMetaResults = await fetchPhoneMetaBatch(phoneNumbers, accessToken);
 
-    // Check if exists or create new
-    let account = await WhatsAppBusinessAccount.findOne({ wabaId });
-
-    if (account) {
-        account.accessToken = accessToken;
-        account.name = wabaData.name;
-        account.timezoneId = wabaData.timezone_id;
-        account.messageTemplateNamespace = wabaData.message_template_namespace;
-        account.metaData = wabaMetaData;
-        account.lastSyncedAt = new Date();
-        await account.save();
-    } else {
-        account = new WhatsAppBusinessAccount({
-            userId: scopeUserId,
-            wabaId: wabaData.id,
-            name: wabaData.name,
-            timezoneId: wabaData.timezone_id,
-            messageTemplateNamespace: wabaData.message_template_namespace,
-            accessToken,
-            metaData: wabaMetaData,
-            lastSyncedAt: new Date()
-        });
-        await account.save();
-    }
-
-    // 2. Fetch Phone Numbers
-    const phoneResponse = await axios.get(`https://graph.facebook.com/v24.0/${wabaId}/phone_numbers`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-    });
-
-    const phoneNumbers = phoneResponse.data.data;
     const savedNumbers = [];
-
-    // 3. For each phone, fetch enriched details in parallel
-    const phoneMetaResults = await Promise.all(
-        phoneNumbers.map(phone =>
-            axios.get(`https://graph.facebook.com/v24.0/${phone.id}`, {
-                params: { fields: PHONE_FIELDS, access_token: accessToken }
-            }).then(r => r.data).catch(err => {
-                console.warn(`Failed to fetch Meta details for phone ${phone.id}:`, err.response?.data?.error?.message || err.message);
-                return null;
-            })
-        )
-    );
-
     for (let i = 0; i < phoneNumbers.length; i++) {
         const phone = phoneNumbers[i];
-        const phoneMeta = phoneMetaResults[i];
+        const baseMeta = phoneMetaResults[i] || {};
+        const phoneKey = normalizeDigits(phone.display_phone_number);
+        const perPhoneAnalytics = analytics?.byPhoneDigits.get(phoneKey) || null;
 
-        let phoneRecord = await WhatsAppPhoneNumber.findOne({ phoneNumberId: phone.id });
-
-        const phoneFields = {
-            verifiedName: phone.verified_name,
-            displayPhoneNumber: phone.display_phone_number,
-            codeVerificationStatus: phone.code_verification_status,
-            qualityRating: phone.quality_rating,
-            platformType: phone.platform_type,
-            throughput: phone.throughput,
-            metaData: phoneMeta,
-            lastSyncedAt: new Date()
-        };
-
-        if (phoneRecord) {
-            Object.assign(phoneRecord, phoneFields);
-            await phoneRecord.save();
-        } else {
-            phoneRecord = new WhatsAppPhoneNumber({
-                userId: scopeUserId,
-                wabaId: account._id,
-                phoneNumberId: phone.id,
-                ...phoneFields
-            });
-            await phoneRecord.save();
-        }
-        savedNumbers.push(phoneRecord);
+        const phoneMeta = { ...baseMeta, conversation_analytics: perPhoneAnalytics };
+        const saved = await upsertPhoneNumberRecord(scopeUserId, account._id, phone, phoneMeta);
+        savedNumbers.push(saved);
     }
 
     return { account, phoneNumbers: savedNumbers };

@@ -382,6 +382,25 @@ const WhatsAppAccounts = () => {
                                                 </div>
                                                 <div className="text-xs font-mono text-gray-600 mb-1.5">{num.displayPhoneNumber}</div>
 
+                                                {/* Conversation analytics (per phone number, all-time) */}
+                                                {num.meta?.conversation_analytics && (
+                                                    <div className="flex items-center gap-3 py-1.5 border-t border-gray-50">
+                                                        <div className="flex items-center gap-1 text-[10px]">
+                                                            <MessageSquare size={10} className="text-green-500" />
+                                                            <span className="font-bold text-gray-800">{num.meta.conversation_analytics.totalConversations}</span>
+                                                            <span className="text-gray-400">convos</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-[10px]">
+                                                            <span className="text-gray-400">Biz:</span>
+                                                            <span className="font-bold text-gray-700">{num.meta.conversation_analytics.businessInitiated}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-[10px]">
+                                                            <span className="text-gray-400">User:</span>
+                                                            <span className="font-bold text-gray-700">{num.meta.conversation_analytics.userInitiated}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Meta live details */}
                                                 {num.meta && (
                                                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-1.5 py-1.5 border-t border-gray-50">
