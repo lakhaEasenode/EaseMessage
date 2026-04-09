@@ -49,6 +49,8 @@ async function fetchWabaDetails(wabaId, accessToken) {
 async function fetchConversationAnalytics(wabaId, accessToken) {
     try {
         const now = Math.floor(Date.now() / 1000);
+        // Meta limits analytics lookback to 365 days (enforced since Dec 1 2025).
+        const oneYearAgo = now - 365 * 24 * 60 * 60;
         const res = await axios.get(`${GRAPH_BASE}/${wabaId}`, {
             params: {
                 // Graph API field-expansion syntax for `dimensions`: comma-separated unquoted
@@ -57,7 +59,7 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
                 // Valid values: PHONE, COUNTRY, CONVERSATION_TYPE, CONVERSATION_DIRECTION, CONVERSATION_CATEGORY.
                 // `conversation_direction` is also returned on every data point by default, so we
                 // only need PHONE here to get the per-phone breakdown.
-                fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY).dimensions(PHONE)`,
+                fields: `conversation_analytics.start(${oneYearAgo}).end(${now}).granularity(MONTHLY).dimensions(PHONE)`,
                 access_token: accessToken,
             },
         });
