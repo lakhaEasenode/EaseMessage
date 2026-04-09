@@ -51,11 +51,13 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
         const now = Math.floor(Date.now() / 1000);
         const res = await axios.get(`${GRAPH_BASE}/${wabaId}`, {
             params: {
-                // `dimensions` must be a quoted-string array: dimensions(['PHONE']).
-                // Unquoted identifiers (dimensions([PHONE])) are not parsed as an array by Graph API.
-                // `conversation_direction` is returned on every data point automatically — it is
-                // NOT a valid dimension value, only a returned field.
-                fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY).dimensions(['PHONE'])`,
+                // Graph API field-expansion syntax for `dimensions`: comma-separated unquoted
+                // enum values inside parentheses — NO square brackets, NO quotes.
+                // See developers.facebook.com/docs/graph-api/reference/whats-app-business-account/conversation_analytics
+                // Valid values: PHONE, COUNTRY, CONVERSATION_TYPE, CONVERSATION_DIRECTION, CONVERSATION_CATEGORY.
+                // `conversation_direction` is also returned on every data point by default, so we
+                // only need PHONE here to get the per-phone breakdown.
+                fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY).dimensions(PHONE)`,
                 access_token: accessToken,
             },
         });
