@@ -59,7 +59,7 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
                 // Valid values: PHONE, COUNTRY, CONVERSATION_TYPE, CONVERSATION_DIRECTION, CONVERSATION_CATEGORY.
                 // `conversation_direction` is also returned on every data point by default, so we
                 // only need PHONE here to get the per-phone breakdown.
-                fields: `conversation_analytics.start(${oneYearAgo}).end(${now}).granularity(DAILY).metric_types(CONVERSATION)`,
+                fields: `conversation_analytics.start(${start}).end(${end}).granularity(DAILY).metric_types(CONVERSATION,COST)`,
                 access_token: accessToken,
             },
         });
