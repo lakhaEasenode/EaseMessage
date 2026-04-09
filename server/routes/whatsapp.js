@@ -51,7 +51,11 @@ async function fetchConversationAnalytics(wabaId, accessToken) {
         const now = Math.floor(Date.now() / 1000);
         const res = await axios.get(`${GRAPH_BASE}/${wabaId}`, {
             params: {
-                fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY).dimensions(['PHONE','CONVERSATION_DIRECTION'])`,
+                // dimensions([PHONE]) must use an unquoted enum identifier — quoted strings
+                // ('PHONE') are rejected by Graph API field expansion with "Invalid parameter".
+                // `conversation_direction` is returned on every data point automatically, so we
+                // don't need it as a dimension.
+                fields: `conversation_analytics.start(0).end(${now}).granularity(MONTHLY).dimensions([PHONE])`,
                 access_token: accessToken,
             },
         });
