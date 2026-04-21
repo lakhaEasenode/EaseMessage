@@ -422,14 +422,46 @@ router.delete('/accounts/:wabaId', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Account not found' });
         }
 
-        // Delete all phone numbers linked to this WABA
+        // Detach from Meta before deleting locally. Without this, Meta keeps
+        // the app ↔ business-portfolio link from embedded signup alive, and
+        // the next embedded-signup attempt reports the portfolio as
+        // "Business already linked to embedded signup".
+        //
+        // Both calls are best-effort: the stored token may already be invalid
+        // (user revoked via Business Settings, token expired, etc.) but we
+        // still need to clean up our DB.
+        if (account.accessToken) {
+            // Reverse of the POST /{waba-id}/subscribed_apps on connect.
+            try {
+                await axios.delete(`${GRAPH_BASE}/${account.wabaId}/subscribed_apps`, {
+                    headers: { Authorization: `Bearer ${account.accessToken}` },
+                });
+            } catch (err) {
+                console.warn(
+                    `Failed to unsubscribe app from WABA ${account.wabaId}:`,
+                    err.response?.data?.error?.message || err.message
+                );
+            }
+
+            // Revoke the OAuth grant created during embedded signup — this is
+            // what clears "already linked to embedded signup" on reconnect.
+            try {
+                await axios.delete(`${GRAPH_BASE}/me/permissions`, {
+                    params: { access_token: account.accessToken },
+                });
+            } catch (err) {
+                console.warn(
+                    `Failed to revoke Meta permissions for WABA ${account.wabaId}:`,
+                    err.response?.data?.error?.message || err.message
+                );
+            }
+        }
+
         await WhatsAppPhoneNumber.deleteMany({ wabaId: account._id });
 
-        // Delete templates linked to this WABA
         const Template = require('../models/Template');
         await Template.deleteMany({ wabaId: account._id });
 
-        // Delete the WABA record
         await WhatsAppBusinessAccount.deleteOne({ _id: account._id });
 
         res.json({ msg: 'WhatsApp Account disconnected successfully' });
